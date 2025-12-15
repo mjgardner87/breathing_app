@@ -1776,13 +1776,16 @@ git commit -m "feat: implement Session screen with breathing phase and state tra
 
 ---
 
-## Task 9: Add Audio Integration (Placeholder)
+## Task 9: Add Audio Integration with Minute Marker Notifications
 
 **Files:**
 - Create: `src/services/AudioService.ts`
-- Create: `assets/audio/breathe-in.mp3` (placeholder)
+- Create: `android/app/src/main/res/raw/README.md`
+- Modify: `src/screens/Session.tsx`
 
 **Note:** For v1, we'll create the audio service structure but use placeholder audio files. You'll need to record or source actual audio clips separately.
+
+**NEW FEATURE:** Minute marker notifications play a bell or voice sound every 60 seconds during breath holds to help users track their progress.
 
 **Step 1: Create audio service**
 
@@ -1810,6 +1813,7 @@ class AudioServiceClass {
       'recovery_breath',
       'release',
       'round_complete',
+      'minute_marker', // NEW: Plays every 60 seconds during holds
     ];
 
     const loadPromises = audioFiles.map(
@@ -1854,31 +1858,40 @@ class AudioServiceClass {
 export const AudioService = new AudioServiceClass();
 ```
 
-**Step 2: Create placeholder audio directory structure**
+**Step 2: Create audio directory structure with minute marker documentation**
 
 ```bash
-mkdir -p assets/audio
-touch assets/audio/README.md
+mkdir -p android/app/src/main/res/raw
 ```
 
-File: `assets/audio/README.md`
+File: `android/app/src/main/res/raw/README.md`
 
 ```markdown
 # Audio Files
 
-Place the following audio files in `android/app/src/main/res/raw/`:
+Place the following audio files in this directory (`android/app/src/main/res/raw/`):
 
-- `breathe_in.mp3` - "Breathe in" (~1 second)
-- `breathe_out.mp3` - "Breathe out" (~1 second)
-- `hold_breath.mp3` - "Hold your breath" (~2 seconds)
-- `recovery_breath.mp3` - "Take a deep breath in and hold" (~3 seconds)
-- `release.mp3` - "Release" (~1 second)
-- `round_complete.mp3` - "Round complete" (~2 seconds)
+## Required Audio Files
+
+- `breathe_in.mp3` - "Breathe in" voice cue (~1 second)
+- `breathe_out.mp3` - "Breathe out" voice cue (~1 second)
+- `hold_breath.mp3` - "Hold your breath" voice cue (~2 seconds)
+- `recovery_breath.mp3` - "Take a deep breath in and hold" voice cue (~3 seconds)
+- `release.mp3` - "Release" voice cue (~1 second)
+- `round_complete.mp3` - "Round complete" voice cue (~2 seconds)
+- `minute_marker.mp3` - **NEW**: Bell or voice notification for minute milestones during breath holds (~1 second)
+
+## Minute Marker Feature
+
+The `minute_marker.mp3` sound plays every 60 seconds during the breath hold phase to help users track their progress. This can be:
+- A gentle bell sound
+- A voice saying "One minute", "Two minutes", etc. (though just a consistent bell is recommended)
+- Any clear but non-jarring sound
 
 You can record these yourself or use text-to-speech tools to generate them.
 ```
 
-**Step 3: Update Session screen to use AudioService**
+**Step 3: Update Session screen to integrate AudioService with minute markers**
 
 Add to `src/screens/Session.tsx` imports:
 
@@ -1886,18 +1899,28 @@ Add to `src/screens/Session.tsx` imports:
 import {AudioService} from '../services/AudioService';
 ```
 
-Add to Session component after prefs loading:
+Add state for tracking minute markers:
+
+```typescript
+const lastMinuteMarker = useRef(0); // Track last minute marker played
+```
+
+Update initialisation to include AudioService:
 
 ```typescript
 useEffect(() => {
-  AudioService.initialize();
+  loadPreferences();
+  KeepAwake.activate();
+  AudioService.initialize(); // Initialize audio
+
   return () => {
-    AudioService.release();
+    KeepAwake.deactivate();
+    AudioService.release(); // Clean up audio
   };
 }, []);
 ```
 
-Update breathing phase effect to play audio:
+Update breathing phase effect to play audio cues:
 
 ```typescript
 useEffect(() => {
@@ -1922,11 +1945,68 @@ useEffect(() => {
 }, [state.currentPhase, incrementBreath]);
 ```
 
-**Step 4: Commit audio service**
+**NEW**: Update hold timer effect to include minute marker notifications:
+
+```typescript
+// Hold timer with minute marker notifications
+useEffect(() => {
+  if (state.currentPhase === 'holding' && state.holdStartTime) {
+    // Play initial hold breath audio cue
+    AudioService.play('hold_breath');
+    lastMinuteMarker.current = 0;
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - state.holdStartTime!) / 1000);
+      setHoldTimer(elapsed);
+
+      // Play minute marker sound every 60 seconds
+      const currentMinute = Math.floor(elapsed / 60);
+      if (currentMinute > lastMinuteMarker.current && currentMinute > 0) {
+        AudioService.play('minute_marker');
+        lastMinuteMarker.current = currentMinute;
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }
+}, [state.currentPhase, state.holdStartTime]);
+```
+
+Update recovery phase to play audio cues:
+
+```typescript
+// Recovery countdown with audio cue
+useEffect(() => {
+  if (state.currentPhase === 'recovery') {
+    AudioService.play('recovery_breath');
+
+    const timeout = setTimeout(() => {
+      AudioService.play('release');
+      completeRecovery();
+    }, prefs.recoveryDuration * 1000);
+
+    return () => clearTimeout(timeout);
+  }
+}, [state.currentPhase, prefs.recoveryDuration, completeRecovery]);
+```
+
+Update session complete to play completion sound:
+
+```typescript
+// Session complete - save and navigate
+useEffect(() => {
+  if (state.currentPhase === 'complete') {
+    AudioService.play('round_complete');
+    saveSession();
+  }
+}, [state.currentPhase]);
+```
+
+**Step 4: Commit audio service with minute marker feature**
 
 ```bash
-git add src/services/AudioService.ts assets/
-git commit -m "feat: add AudioService with placeholder audio integration"
+git add src/services/AudioService.ts android/app/src/main/res/raw/README.md src/screens/Session.tsx docs/
+git commit -m "feat: add AudioService with minute marker notifications during breath holds"
 ```
 
 ---

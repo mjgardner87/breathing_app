@@ -1,8 +1,9 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import KeepAwake from 'react-native-keep-awake';
 import {StorageService} from '../services/StorageService';
+import {AudioService} from '../services/AudioService';
 import {UserPreferences} from '../types';
 import {useSessionState} from '../hooks/useSessionState';
 import {BreathingCircle} from '../components/BreathingCircle';
@@ -18,20 +19,34 @@ export const Session: React.FC = () => {
   });
   const {state, incrementBreath, completeHold, completeRecovery} = useSessionState(prefs);
   const [holdTimer, setHoldTimer] = useState(0);
+  const lastMinuteMarker = useRef(0); // Track last minute marker played
 
   useEffect(() => {
     loadPreferences();
     KeepAwake.activate();
+    AudioService.initialize();
 
     return () => {
       KeepAwake.deactivate();
+      AudioService.release();
     };
   }, []);
 
-  // Breathing phase auto-increment
+  // Breathing phase auto-increment with audio cues
   useEffect(() => {
     if (state.currentPhase === 'breathing') {
+      let breathInPlayed = false;
+
       const breathInterval = setInterval(() => {
+        if (!breathInPlayed) {
+          AudioService.play('breathe_in');
+          breathInPlayed = true;
+          setTimeout(() => {
+            AudioService.play('breathe_out');
+            breathInPlayed = false;
+          }, 3000); // Play "breathe out" after 3 seconds
+        }
+
         incrementBreath();
       }, 5500); // 5.5 seconds per breath cycle
 
@@ -39,22 +54,36 @@ export const Session: React.FC = () => {
     }
   }, [state.currentPhase, incrementBreath]);
 
-  // Hold timer
+  // Hold timer with minute marker notifications
   useEffect(() => {
     if (state.currentPhase === 'holding' && state.holdStartTime) {
+      // Play initial hold breath audio cue
+      AudioService.play('hold_breath');
+      lastMinuteMarker.current = 0;
+
       const interval = setInterval(() => {
         const elapsed = Math.floor((Date.now() - state.holdStartTime!) / 1000);
         setHoldTimer(elapsed);
+
+        // Play minute marker sound every 60 seconds
+        const currentMinute = Math.floor(elapsed / 60);
+        if (currentMinute > lastMinuteMarker.current && currentMinute > 0) {
+          AudioService.play('minute_marker');
+          lastMinuteMarker.current = currentMinute;
+        }
       }, 100);
 
       return () => clearInterval(interval);
     }
   }, [state.currentPhase, state.holdStartTime]);
 
-  // Recovery countdown
+  // Recovery countdown with audio cue
   useEffect(() => {
     if (state.currentPhase === 'recovery') {
+      AudioService.play('recovery_breath');
+
       const timeout = setTimeout(() => {
+        AudioService.play('release');
         completeRecovery();
       }, prefs.recoveryDuration * 1000);
 
@@ -65,6 +94,7 @@ export const Session: React.FC = () => {
   // Session complete - save and navigate
   useEffect(() => {
     if (state.currentPhase === 'complete') {
+      AudioService.play('round_complete');
       saveSession();
     }
   }, [state.currentPhase]);
