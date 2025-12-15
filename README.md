@@ -1,6 +1,14 @@
 # Breathing App
 
-A React Native mobile app for guided Wim Hof Method breathing exercises with session tracking and customisation.
+A React Native mobile app for guided breathing exercises inspired by the Wim Hof Method, with session tracking and customisation.
+
+## ⚠️ Important Disclaimer
+
+**This is NOT an official Wim Hof Method app and is NOT affiliated with, endorsed by, or connected to Wim Hof or his organisation in any way.**
+
+This is a personal project built as a free tool for practicing breathing exercises inspired by the Wim Hof Method. It is made available to others at no cost for educational and personal use. The developer has had no engagement with Wim Hof, his team, or any official Wim Hof Method organisation.
+
+If you want the official Wim Hof Method experience, please visit [wimhofmethod.com](https://www.wimhofmethod.com) or download the official Wim Hof Method app.
 
 ## Features
 
@@ -170,7 +178,11 @@ The app follows a clean architecture pattern:
 
 ## License
 
-This project is for personal use. See implementation plan in `docs/plans/` for detailed architecture and design decisions.
+This project is provided **free of charge** for personal, educational, and non-commercial use. It is a community-driven, open-source tool built for personal practice and shared freely with others.
+
+**No affiliation**: This app is not affiliated with, endorsed by, or connected to Wim Hof or any official Wim Hof Method organisation.
+
+See implementation plan in `docs/plans/` for detailed architecture and design decisions.
 
 ## Resources
 
