@@ -1,97 +1,186 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Breathing App
 
-# Getting Started
+A React Native mobile app for guided Wim Hof Method breathing exercises with session tracking and customisation.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Features
 
-## Step 1: Start Metro
+- **Guided Breathing Sessions** - Automated visual animations and audio cues for the complete Wim Hof breathing cycle
+- **Session History** - Local storage of all completed sessions with breath hold times
+- **Customisable Protocols** - Adjustable breaths per round, number of rounds, and recovery breath duration
+- **Minute Markers** - Audio notification every minute during breath holds to track progress
+- **Always-On Display** - Screen stays awake during active sessions
+- **Privacy-First** - All data stored locally on device, no account required
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## The Wim Hof Method
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+The Wim Hof Method breathing technique consists of:
 
-```sh
-# Using npm
+1. **Active Breathing Phase** - 30 deep breaths (inhale fully through nose/mouth, exhale without force)
+2. **Breath Hold Phase** - After the last exhale, hold breath as long as comfortable
+3. **Recovery Breath** - One deep inhale, hold for 15 seconds, then release
+4. **Repeat** - Complete 3-4 rounds total
+
+## Prerequisites
+
+- Node.js 18+ installed
+- Android Studio with Android SDK
+- Samsung S24 (or any Android device) with developer mode enabled
+- `npx` available globally
+
+## Quick Start
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/mjgardner87/breathing_app.git
+cd breathing_app
+
+# Install dependencies
+npm install
+
+# Start Metro bundler
 npm start
-
-# OR using Yarn
-yarn start
 ```
 
-## Step 2: Build and run your app
+### Running on Android
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+```bash
+# Make sure your device is connected via USB with USB debugging enabled
+# Or start an Android emulator
 
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+# Build and run
+npx react-native run-android
 ```
 
-### iOS
+## Development
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+### Project Structure
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+```
+BreathingApp/
+├── src/
+│   ├── screens/          # Dashboard, Settings, Session screens
+│   ├── components/       # Reusable components (BreathingCircle, etc.)
+│   ├── hooks/            # Custom React hooks (useSessionState)
+│   ├── services/         # StorageService, AudioService
+│   ├── navigation/       # React Navigation setup
+│   ├── types/            # TypeScript type definitions
+│   ├── constants/        # Theme and constants
+│   └── utils/            # Utility functions (statsCalculator, etc.)
+├── android/              # Android native code
+├── assets/               # Audio files and other assets
+├── docs/                 # Documentation and implementation plans
+└── App.tsx               # App entry point
 ```
 
-Then, and every time you update your native dependencies, run:
+### Tech Stack
 
-```sh
-bundle exec pod install
+- **React Native 0.83+** - Mobile framework
+- **TypeScript** - Type safety
+- **React Navigation 6** - Navigation
+- **AsyncStorage** - Local data persistence
+- **React Native Reanimated 3** - Smooth animations
+- **React Native Sound** - Audio playback
+- **React Native Keep Awake** - Screen wake lock
+- **Jest** - Testing framework
+
+### Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage
+npm test -- --coverage
+
+# Run specific test file
+npm test -- StorageService.test.ts
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+### Code Quality
 
-```sh
-# Using npm
-npm run ios
+```bash
+# Lint code
+npm run lint
 
-# OR using Yarn
-yarn ios
+# Format code
+npx prettier --write "src/**/*.{ts,tsx}"
+
+# Type check
+npx tsc --noEmit
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+## Building for Release
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+### Generate Keystore
 
-## Step 3: Modify your app
+```bash
+cd android/app
+keytool -genkeypair -v -storetype PKCS12 -keystore breathing-app-release.keystore -alias breathing-app -keyalg RSA -keysize 2048 -validity 10000
+```
 
-Now that you have successfully run the app, let's make changes!
+### Build APK
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+```bash
+# Build release APK
+npx react-native build-android --mode=release
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+# Install on device
+adb install android/app/build/outputs/apk/release/app-release.apk
+```
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+## Audio Setup
 
-## Congratulations! :tada:
+Audio files need to be placed in `android/app/src/main/res/raw/`:
 
-You've successfully run and modified your React Native App. :partying_face:
+- `breathe_in.mp3` - "Breathe in" (~1 second)
+- `breathe_out.mp3` - "Breathe out" (~1 second)
+- `hold_breath.mp3` - "Hold your breath" (~2 seconds)
+- `minute_marker.mp3` - Bell or voice notification for minute markers (~1 second)
+- `recovery_breath.mp3` - "Take a deep breath in and hold" (~3 seconds)
+- `release.mp3` - "Release" (~1 second)
+- `round_complete.mp3` - "Round complete" (~2 seconds)
 
-### Now what?
+You can record these yourself or use text-to-speech tools to generate them.
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+## Safety
 
-# Troubleshooting
+⚠️ **Always practice breathing exercises while seated or lying down.**
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+Never practice while driving, in water, or in any situation where loss of consciousness could be dangerous.
 
-# Learn More
+## Customisation
 
-To learn more about React Native, take a look at the following resources:
+The app allows you to customise:
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- **Breaths per round**: 10-50 breaths (default: 30)
+- **Number of rounds**: 1-10 rounds (default: 3)
+- **Recovery breath hold**: 10-30 seconds (default: 15)
+
+## Architecture
+
+The app follows a clean architecture pattern:
+
+- **Screens** - UI components for Dashboard, Settings, and Session
+- **Hooks** - React hooks for state management (session state machine)
+- **Services** - Business logic layer (storage, audio)
+- **Components** - Reusable UI components
+- **Utils** - Pure utility functions
+
+## License
+
+This project is for personal use. See implementation plan in `docs/plans/` for detailed architecture and design decisions.
+
+## Resources
+
+- [Wim Hof Method Official Website](https://www.wimhofmethod.com/breathing-exercises)
+- [React Native Documentation](https://reactnative.dev)
+- [React Navigation](https://reactnavigation.org)
+- [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/)
+
+## Version
+
+Current Version: 1.0.0
+
+Built with ❄️ and 🫁
