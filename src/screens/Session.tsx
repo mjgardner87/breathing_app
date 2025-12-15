@@ -1,5 +1,5 @@
 import React, {useState, useEffect, useRef} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, Modal} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import KeepAwake from 'react-native-keep-awake';
 import {StorageService} from '../services/StorageService';
@@ -20,6 +20,7 @@ export const Session: React.FC = () => {
   const {state, incrementBreath, completeHold, completeRecovery} = useSessionState(prefs);
   const [holdTimer, setHoldTimer] = useState(0);
   const lastMinuteMarker = useRef(0); // Track last minute marker played
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
     loadPreferences();
@@ -128,6 +129,15 @@ export const Session: React.FC = () => {
   };
 
   const handleCancel = () => {
+    if (state.currentPhase !== 'complete') {
+      setShowCancelConfirm(true);
+    } else {
+      KeepAwake.deactivate();
+      navigation.goBack();
+    }
+  };
+
+  const confirmCancel = () => {
     KeepAwake.deactivate();
     navigation.goBack();
   };
@@ -202,6 +212,30 @@ export const Session: React.FC = () => {
       </TouchableOpacity>
 
       {renderPhaseContent()}
+
+      {/* Cancellation Confirmation Modal */}
+      <Modal
+        visible={showCancelConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCancelConfirm(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>End Session Early?</Text>
+            <Text style={styles.modalText}>Progress won't be saved.</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButtonSecondary}
+                onPress={() => setShowCancelConfirm(false)}>
+                <Text style={styles.modalButtonText}>No, continue</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalButton} onPress={confirmCancel}>
+                <Text style={styles.modalButtonText}>Yes, end it</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -291,6 +325,59 @@ const styles = StyleSheet.create({
   finishButtonText: {
     color: theme.colours.text,
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: theme.colours.background,
+    borderRadius: 16,
+    padding: theme.spacing.xl,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: theme.colours.accent,
+  },
+  modalTitle: {
+    color: theme.colours.text,
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  modalText: {
+    color: theme.colours.text,
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: theme.spacing.lg,
+    opacity: 0.8,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: theme.spacing.md,
+  },
+  modalButton: {
+    flex: 1,
+    backgroundColor: theme.colours.accent,
+    padding: theme.spacing.md,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonSecondary: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: theme.spacing.md,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: theme.colours.text,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

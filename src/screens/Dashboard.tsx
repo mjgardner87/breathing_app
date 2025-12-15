@@ -6,7 +6,9 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../navigation/AppNavigator';
@@ -21,10 +23,32 @@ export const Dashboard: React.FC = () => {
   const navigation = useNavigation<DashboardNavigationProp>();
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSafetyWarning, setShowSafetyWarning] = useState(false);
 
   useEffect(() => {
     loadSessions();
+    checkFirstLaunch();
   }, []);
+
+  const checkFirstLaunch = async () => {
+    try {
+      const hasSeenWarning = await AsyncStorage.getItem('@breathingapp:safety_warning_seen');
+      if (!hasSeenWarning) {
+        setShowSafetyWarning(true);
+      }
+    } catch (error) {
+      console.error('Failed to check first launch:', error);
+    }
+  };
+
+  const dismissSafetyWarning = async () => {
+    try {
+      await AsyncStorage.setItem('@breathingapp:safety_warning_seen', 'true');
+      setShowSafetyWarning(false);
+    } catch (error) {
+      console.error('Failed to save safety warning preference:', error);
+    }
+  };
 
   const loadSessions = async () => {
     try {
@@ -102,6 +126,39 @@ export const Dashboard: React.FC = () => {
           </View>
         </>
       )}
+
+      {/* Safety Warning Modal */}
+      <Modal
+        visible={showSafetyWarning}
+        transparent
+        animationType="fade"
+        onRequestClose={dismissSafetyWarning}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Safety First</Text>
+            <ScrollView style={styles.modalScroll}>
+              <Text style={styles.modalText}>
+                Always practice breathing exercises while seated or lying down.
+                {'\n\n'}
+                Never practice while driving, in water, or in any situation where loss of consciousness could be dangerous.
+                {'\n\n'}
+                <Text style={styles.modalTextBold}>IMPORTANT DISCLAIMER:</Text>
+                {'\n\n'}
+                This app is NOT affiliated with Wim Hof or the official Wim Hof Method. This is a free, personal tool created for educational purposes.
+                {'\n\n'}
+                For the official Wim Hof Method training, resources, and guidance, please visit:
+                {'\n'}
+                <Text style={styles.modalTextHighlight}>wimhofmethod.com</Text>
+                {'\n\n'}
+                If you have any medical conditions, consult a healthcare professional before starting any breathing practice.
+              </Text>
+            </ScrollView>
+            <TouchableOpacity style={styles.modalButton} onPress={dismissSafetyWarning}>
+              <Text style={styles.modalButtonText}>I Understand</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -195,5 +252,59 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     textAlign: 'center',
     marginTop: theme.spacing.xl,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: theme.colours.background,
+    borderRadius: 16,
+    padding: theme.spacing.xl,
+    width: '100%',
+    maxHeight: '80%',
+    borderWidth: 1,
+    borderColor: theme.colours.accent,
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  modalTitle: {
+    color: theme.colours.text,
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  modalText: {
+    color: theme.colours.text,
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'left',
+  },
+  modalTextBold: {
+    color: theme.colours.accent,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalTextHighlight: {
+    color: theme.colours.success,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalButton: {
+    backgroundColor: theme.colours.accent,
+    padding: theme.spacing.md,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: theme.spacing.lg,
+  },
+  modalButtonText: {
+    color: theme.colours.text,
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
