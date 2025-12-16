@@ -1,0 +1,112 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Generate debug keystore (for unsigned build)
+        run: |
+          mkdir -p android/app
+          keytool -genkeypair -v -storetype PKCS12 \
+            -keystore android/app/debug.keystore \
+            -alias androiddebugkey \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
+
+      - name: Build APK
+        run: cd android && ./gradlew assembleRelease
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: breathing-app-release
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      - name: Get commit info
+        id: commit_info
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "commit_date=$(git show -s --format=%ci HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Create Release (on main branch only)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Release v1.0.${{ github.run_number }}
+          body: |
+            ## Breathing App - Release v1.0.${{ github.run_number }}
+
+            **Build Date:** ${{ steps.commit_info.outputs.commit_date }}
+            **Commit:** ${{ steps.commit_info.outputs.sha_short }}
+
+            ### Installation
+            1. Download `breathing-app-release.apk` below
+            2. Transfer to your Android phone
+            3. Enable "Install from Unknown Sources" in phone settings
+            4. Install the APK
+            5. See [INSTALL.md](https://github.com/mjgardner87/breathing_app/blob/main/INSTALL.md) for full instructions
+
+            ### What's Included
+            - ✅ Dashboard with session tracking
+            - ✅ Customisable breathing protocols
+            - ✅ Animated breathing guidance
+            - ✅ Minute marker notifications during holds
+            - ✅ Session history and statistics
+            - ⚠️ Audio files not included (see INSTALL.md for audio setup)
+
+            ### Important
+            This app is **NOT affiliated with Wim Hof or the official Wim Hof Method**. This is a free, open-source personal tool for educational purposes.
+
+            For the official Wim Hof Method, visit https://www.wimhofmethod.com
+          files: android/app/build/outputs/apk/release/app-release.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

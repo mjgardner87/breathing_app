@@ -28,38 +28,49 @@ The Wim Hof Method breathing technique consists of:
 3. **Recovery Breath** - One deep inhale, hold for 15 seconds, then release
 4. **Repeat** - Complete 3-4 rounds total
 
-## Prerequisites
+## 📥 Installation
 
-- Node.js 18+ installed
-- Android Studio with Android SDK
-- Samsung S24 (or any Android device) with developer mode enabled
-- `npx` available globally
+**Choose your installation method:**
 
-## Quick Start
+### Option 1: Download Pre-Built APK (Easiest - Recommended)
 
-### Installation
+1. Go to [Releases](https://github.com/mjgardner87/breathing_app/releases)
+2. Download the latest `breathing-app-release.apk`
+3. Transfer to your Android phone
+4. Enable "Install from Unknown Sources" in Settings
+5. Install the APK
 
+📖 **See [INSTALL.md](INSTALL.md) for detailed step-by-step instructions**
+
+### Option 2: Build It Yourself
+
+**Quick Build (if you have Android SDK set up):**
 ```bash
-# Clone the repository
 git clone https://github.com/mjgardner87/breathing_app.git
 cd breathing_app
-
-# Install dependencies
 npm install
-
-# Start Metro bundler
-npm start
+./build-apk.sh
 ```
 
-### Running on Android
+**First Time Setup:**
+See [INSTALL.md](INSTALL.md) for complete setup instructions including:
+- Installing Android SDK
+- Configuring environment variables
+- Building the APK
+- Installing on your phone
 
-```bash
-# Make sure your device is connected via USB with USB debugging enabled
-# Or start an Android emulator
+## 🔊 Audio Setup (Optional)
 
-# Build and run
-npx react-native run-android
-```
+The app works without audio, but for the full experience with voice cues and minute markers:
+
+1. Download or create 7 audio files (MP3 format)
+2. Place them in `android/app/src/main/res/raw/` before building
+3. Or add them to your phone after installation
+
+See [INSTALL.md](INSTALL.md#audio-files-guide) for:
+- Complete audio file list
+- How to create/download audio files
+- Where to place them
 
 ## Development
 
