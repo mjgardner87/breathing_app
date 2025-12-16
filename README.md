@@ -59,18 +59,22 @@ See [INSTALL.md](INSTALL.md) for complete setup instructions including:
 - Building the APK
 - Installing on your phone
 
-## 🔊 Audio Setup (Optional)
+## 🔊 Audio Files - Included!
 
-The app works without audio, but for the full experience with voice cues and minute markers:
+**✅ Audio files are now included in the app by default!**
 
-1. Download or create 7 audio files (MP3 format)
-2. Place them in `android/app/src/main/res/raw/` before building
-3. Or add them to your phone after installation
+The app comes with AI-generated voice cues and a calming minute marker bell:
+- Breathe in / Breathe out voice guidance
+- Hold breath and recovery breath instructions
+- Minute marker bell (plays every 60 seconds during holds)
+- Round complete notification
 
-See [INSTALL.md](INSTALL.md#audio-files-guide) for:
-- Complete audio file list
-- How to create/download audio files
-- Where to place them
+**Audio files generated using AI text-to-speech** (espeak-ng) with a calming voice optimised for meditation.
+
+**Want to customize the audio?**
+- Regenerate with different voice: `./generate-audio.sh`
+- Replace files in `android/app/src/main/res/raw/`
+- See [INSTALL.md](INSTALL.md#audio-files-guide) for details
 
 ## Development
 
