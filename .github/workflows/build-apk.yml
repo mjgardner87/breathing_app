@@ -42,18 +42,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Generate debug keystore (for unsigned build)
+      - name: Ensure debug keystore exists
         run: |
-          mkdir -p android/app
-          keytool -genkeypair -v -storetype PKCS12 \
-            -keystore android/app/debug.keystore \
-            -alias androiddebugkey \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass android \
-            -keypass android \
-            -dname "CN=Android Debug,O=Android,C=US"
+          if [ ! -f android/app/debug.keystore ]; then
+            echo "Generating debug keystore..."
+            keytool -genkeypair -v -storetype PKCS12 \
+              -keystore android/app/debug.keystore \
+              -alias androiddebugkey \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass android \
+              -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US"
+          else
+            echo "Debug keystore already exists, skipping generation"
+          fi
 
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
