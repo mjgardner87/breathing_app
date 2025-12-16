@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useRef} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, Modal} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
-import KeepAwake from '@thehale/react-native-keep-awake';
+import {activate as keepAwakeActivate, deactivate as keepAwakeDeactivate} from '@thehale/react-native-keep-awake';
 import {StorageService} from '../services/StorageService';
 import {AudioService} from '../services/AudioService';
 import {UserPreferences} from '../types';
@@ -24,11 +24,11 @@ export const Session: React.FC = () => {
 
   useEffect(() => {
     loadPreferences();
-    KeepAwake.activate();
+    keepAwakeActivate();
     AudioService.initialize();
 
     return () => {
-      KeepAwake.deactivate();
+      keepAwakeDeactivate();
       AudioService.release();
     };
   }, []);
@@ -132,13 +132,13 @@ export const Session: React.FC = () => {
     if (state.currentPhase !== 'complete') {
       setShowCancelConfirm(true);
     } else {
-      KeepAwake.deactivate();
+      keepAwakeDeactivate();
       navigation.goBack();
     }
   };
 
   const confirmCancel = () => {
-    KeepAwake.deactivate();
+    keepAwakeDeactivate();
     navigation.goBack();
   };
 
@@ -208,7 +208,7 @@ export const Session: React.FC = () => {
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-        <Text style={styles.cancelText}>✕</Text>
+        <Text style={styles.cancelText}>×</Text>
       </TouchableOpacity>
 
       {renderPhaseContent()}
@@ -244,26 +244,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colours.background,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.xl,
   },
   cancelButton: {
     position: 'absolute',
-    top: theme.spacing.lg,
-    right: theme.spacing.lg,
+    top: theme.spacing.xl + theme.spacing.lg,
+    right: theme.spacing.xl,
     zIndex: 10,
-    padding: theme.spacing.sm,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cancelText: {
-    color: theme.colours.text,
-    fontSize: 32,
-    opacity: 0.6,
+    color: theme.colours.textTertiary,
+    fontSize: 28,
+    opacity: 0.4,
+    fontWeight: '200',
   },
   phaseText: {
-    color: theme.colours.text,
-    fontSize: 24,
-    fontWeight: 'bold',
+    color: theme.colours.textSecondary,
+    ...theme.typography.heading,
     textAlign: 'center',
-    marginTop: theme.spacing.xl,
+    marginTop: theme.spacing.xxxl,
     marginBottom: theme.spacing.xl,
   },
   holdContainer: {
@@ -273,27 +278,23 @@ const styles = StyleSheet.create({
   },
   holdTimer: {
     color: theme.colours.text,
-    fontSize: 64,
-    fontFamily: 'monospace',
-    marginBottom: theme.spacing.xl,
+    ...theme.typography.timer,
+    marginBottom: theme.spacing.xxxl,
   },
   doneButton: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: theme.colours.accent,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: theme.colours.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: theme.colours.accent,
-    shadowOffset: {width: 0, height: 0},
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 10,
+    borderWidth: 2,
+    borderColor: theme.colours.primaryHover,
+    ...theme.shadows.md,
   },
   doneButtonText: {
-    color: theme.colours.text,
-    fontSize: 20,
-    fontWeight: 'bold',
+    color: '#ffffff',
+    ...theme.typography.heading,
   },
   recoveryContainer: {
     flex: 1,
@@ -301,83 +302,85 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   recoveryText: {
-    color: theme.colours.text,
-    fontSize: 20,
+    color: theme.colours.textSecondary,
+    ...theme.typography.body,
     textAlign: 'center',
   },
   summaryContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: theme.spacing.xl,
   },
   summaryText: {
     color: theme.colours.text,
-    fontSize: 20,
+    ...theme.typography.body,
     marginBottom: theme.spacing.md,
+    textAlign: 'center',
   },
   finishButton: {
-    backgroundColor: theme.colours.accent,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.xl * 2,
-    borderRadius: 12,
+    backgroundColor: theme.colours.primary,
+    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.xxl * 2,
+    borderRadius: theme.borderRadius.lg,
     marginTop: theme.spacing.xl,
+    ...theme.shadows.sm,
   },
   finishButtonText: {
-    color: theme.colours.text,
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: '#ffffff',
+    ...theme.typography.heading,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: theme.spacing.lg,
+    padding: theme.spacing.xl,
   },
   modalContent: {
-    backgroundColor: theme.colours.background,
-    borderRadius: 16,
-    padding: theme.spacing.xl,
+    backgroundColor: theme.colours.backgroundElevated,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xxl,
     width: '100%',
     borderWidth: 1,
-    borderColor: theme.colours.accent,
+    borderColor: theme.colours.borderSubtle,
   },
   modalTitle: {
     color: theme.colours.text,
-    fontSize: 24,
-    fontWeight: 'bold',
+    ...theme.typography.title,
     textAlign: 'center',
     marginBottom: theme.spacing.md,
   },
   modalText: {
-    color: theme.colours.text,
-    fontSize: 16,
+    color: theme.colours.textSecondary,
+    ...theme.typography.body,
     textAlign: 'center',
-    marginBottom: theme.spacing.lg,
-    opacity: 0.8,
+    marginBottom: theme.spacing.xl,
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: theme.spacing.md,
   },
   modalButton: {
     flex: 1,
-    backgroundColor: theme.colours.accent,
-    padding: theme.spacing.md,
-    borderRadius: 12,
+    backgroundColor: theme.colours.primary,
+    paddingVertical: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
+    marginLeft: theme.spacing.sm,
   },
   modalButtonSecondary: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    padding: theme.spacing.md,
-    borderRadius: 12,
+    backgroundColor: 'transparent',
+    paddingVertical: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colours.borderSubtle,
+    marginRight: theme.spacing.sm,
   },
   modalButtonText: {
     color: theme.colours.text,
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...theme.typography.bodyMedium,
   },
 });

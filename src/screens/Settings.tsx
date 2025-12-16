@@ -72,8 +72,8 @@ export const Settings: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>←</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backButtonText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Settings</Text>
         <View style={styles.placeholder} />
@@ -145,63 +145,81 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colours.background,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.xl,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.xxxl,
+    marginTop: theme.spacing.lg,
   },
   backButton: {
-    color: theme.colours.text,
-    fontSize: 32,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: theme.colours.textSecondary,
+    fontSize: 36,
+    opacity: 0.5,
+    fontWeight: '200',
   },
   title: {
     color: theme.colours.text,
-    fontSize: 28,
-    fontWeight: 'bold',
+    ...theme.typography.display,
   },
   placeholder: {
-    width: 32,
+    width: 40,
   },
   settingSection: {
-    marginBottom: theme.spacing.xl,
+    backgroundColor: theme.colours.backgroundElevated,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colours.borderSubtle,
   },
   settingValue: {
     color: theme.colours.text,
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: '300',
     textAlign: 'center',
+    letterSpacing: -0.5,
+    marginBottom: theme.spacing.xs,
   },
   settingLabel: {
-    color: theme.colours.text,
-    fontSize: 16,
+    color: theme.colours.textSecondary,
+    fontSize: 14,
+    fontWeight: '500',
     textAlign: 'center',
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
   },
   slider: {
     width: '100%',
-    height: 40,
+    height: 32,
   },
   helpText: {
-    color: theme.colours.text,
-    fontSize: 14,
-    opacity: 0.6,
+    color: theme.colours.textTertiary,
+    fontSize: 12,
     textAlign: 'center',
     marginTop: theme.spacing.sm,
   },
   resetButton: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    padding: theme.spacing.md,
-    borderRadius: 8,
+    backgroundColor: 'transparent',
+    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.xl,
+    borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
     marginTop: theme.spacing.xl,
+    borderWidth: 1,
+    borderColor: theme.colours.borderSubtle,
   },
   resetButtonText: {
-    color: theme.colours.text,
-    fontSize: 16,
-    fontWeight: '600',
+    color: theme.colours.textSecondary,
+    ...theme.typography.bodyMedium,
   },
 });

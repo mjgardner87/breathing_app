@@ -1,65 +1,51 @@
-import Sound from 'react-native-sound';
-
-Sound.setCategory('Playback');
+import SoundPlayer from 'react-native-sound-player';
 
 class AudioServiceClass {
-  private sounds: Map<string, Sound> = new Map();
   private initialized = false;
+  private soundPlayerAvailable = false;
 
   async initialize(): Promise<void> {
     if (this.initialized) {
       return;
     }
 
-    // Note: Audio files need to be placed in android/app/src/main/res/raw/
-    const audioFiles = [
-      'breathe_in',
-      'breathe_out',
-      'hold_breath',
-      'recovery_breath',
-      'release',
-      'round_complete',
-      'minute_marker', // New: minute notification during holds
-    ];
-
-    const loadPromises = audioFiles.map(
-      file =>
-        new Promise<void>((resolve, reject) => {
-          // Try to load audio file (supports .mp3, .wav, etc.)
-          // MAIN_BUNDLE automatically finds the file in android/app/src/main/res/raw/
-          const sound = new Sound(file, Sound.MAIN_BUNDLE, error => {
-            if (error) {
-              console.warn(`Failed to load sound: ${file}`, error);
-              resolve(); // Don't fail initialization if one file missing
-            } else {
-              this.sounds.set(file, sound);
-              resolve();
-            }
-          });
-        }),
-    );
-
-    await Promise.all(loadPromises);
-    this.initialized = true;
+    try {
+      // Check if SoundPlayer is available
+      if (SoundPlayer && typeof SoundPlayer.playSoundFile === 'function') {
+        this.soundPlayerAvailable = true;
+        console.log('[AudioService] Initialized with react-native-sound-player');
+      } else {
+        console.warn('[AudioService] SoundPlayer not available, audio will be disabled');
+        this.soundPlayerAvailable = false;
+      }
+      this.initialized = true;
+    } catch (error) {
+      console.warn('[AudioService] Failed to initialize:', error);
+      this.soundPlayerAvailable = false;
+      this.initialized = true;
+    }
   }
 
   play(name: string): void {
-    const sound = this.sounds.get(name);
-    if (sound) {
-      sound.play(success => {
-        if (!success) {
-          console.warn(`Sound playback failed: ${name}`);
-        }
-      });
-    } else {
-      console.warn(`Sound not found: ${name}`);
+    if (!this.soundPlayerAvailable) {
+      console.log(`[AudioService] Would play: ${name} (SoundPlayer not available)`);
+      return;
+    }
+
+    try {
+      // Play sound from raw resources
+      // File extension is automatically handled
+      SoundPlayer.playSoundFile(name, 'wav');
+    } catch (error) {
+      console.warn(`[AudioService] Playback failed for ${name}:`, error);
     }
   }
 
   release(): void {
-    this.sounds.forEach(sound => sound.release());
-    this.sounds.clear();
+    // No cleanup needed for react-native-sound-player
     this.initialized = false;
+    this.soundPlayerAvailable = false;
+    console.log('[AudioService] Released audio resources');
   }
 }
 
