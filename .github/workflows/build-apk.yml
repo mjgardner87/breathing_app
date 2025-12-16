@@ -103,7 +103,7 @@ jobs:
             - ✅ Animated breathing guidance
             - ✅ Minute marker notifications during holds
             - ✅ Session history and statistics
-            - ⚠️ Audio files not included (see INSTALL.md for audio setup)
+            - ✅ AI-generated audio cues included
 
             ### Important
             This app is **NOT affiliated with Wim Hof or the official Wim Hof Method**. This is a free, open-source personal tool for educational purposes.

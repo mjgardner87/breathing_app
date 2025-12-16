@@ -18,4 +18,13 @@ buildscript {
     }
 }
 
+// Force all subprojects to use google() and mavenCentral() repositories
+// This overrides any deprecated jcenter() declarations in dependencies
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
 apply plugin: "com.facebook.react.rootproject"

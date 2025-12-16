@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useRef} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, Modal} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
-import KeepAwake from 'react-native-keep-awake';
+import KeepAwake from '@thehale/react-native-keep-awake';
 import {StorageService} from '../services/StorageService';
 import {AudioService} from '../services/AudioService';
 import {UserPreferences} from '../types';
