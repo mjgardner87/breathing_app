@@ -25,7 +25,9 @@ class AudioServiceClass {
     const loadPromises = audioFiles.map(
       file =>
         new Promise<void>((resolve, reject) => {
-          const sound = new Sound(`${file}.mp3`, Sound.MAIN_BUNDLE, error => {
+          // Try to load audio file (supports .mp3, .wav, etc.)
+          // MAIN_BUNDLE automatically finds the file in android/app/src/main/res/raw/
+          const sound = new Sound(file, Sound.MAIN_BUNDLE, error => {
             if (error) {
               console.warn(`Failed to load sound: ${file}`, error);
               resolve(); // Don't fail initialization if one file missing
