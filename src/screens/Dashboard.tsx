@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useMemo} from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,17 @@ import {RootStackParamList} from '../navigation/AppNavigator';
 import {StorageService} from '../services/StorageService';
 import {SessionData} from '../types';
 import {calculateStats, formatTime} from '../utils/statsCalculator';
-import {theme} from '../constants/theme';
+import {useTheme} from '../context/ThemeContext';
+import {Theme} from '../constants/theme';
+import {Logo} from '../components/Logo';
 
 type DashboardNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
 
 export const Dashboard: React.FC = () => {
   const navigation = useNavigation<DashboardNavigationProp>();
+  const {theme} = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSafetyWarning, setShowSafetyWarning] = useState(false);
@@ -29,6 +34,13 @@ export const Dashboard: React.FC = () => {
     loadSessions();
     checkFirstLaunch();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadSessions();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const checkFirstLaunch = async () => {
     try {
@@ -67,7 +79,14 @@ export const Dashboard: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Breathe</Text>
+        <View>
+            <Logo />
+            {/* Keeping the subtitle but with adjusted spacing if needed, though Logo has text now.
+                Actually, the Logo component I wrote includes the text "Innerfire".
+                I'll render the subtitle below it.
+             */}
+            <Text style={styles.subtitle}>Ignite your potential</Text>
+        </View>
         <TouchableOpacity
           style={styles.settingsButton}
           onPress={() => navigation.navigate('Settings')}>
@@ -75,23 +94,23 @@ export const Dashboard: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Stats */}
+      {/* Stats Grid */}
       {loading ? (
-        <ActivityIndicator size="large" color={theme.colours.accent} />
+        <ActivityIndicator size="large" color={theme.colours.text} />
       ) : (
         <>
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{stats.totalSessions}</Text>
-              <Text style={styles.statLabel}>Total Sessions</Text>
+              <Text style={styles.statLabel}>Sessions</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{formatTime(stats.averageHold)}</Text>
-              <Text style={styles.statLabel}>Average Hold</Text>
+              <Text style={styles.statLabel}>Avg Hold</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{formatTime(stats.bestHold)}</Text>
-              <Text style={styles.statLabel}>Best Hold</Text>
+              <Text style={styles.statLabel}>Best</Text>
             </View>
           </View>
 
@@ -104,21 +123,44 @@ export const Dashboard: React.FC = () => {
 
           {/* Session History */}
           <View style={styles.historyContainer}>
-            <Text style={styles.historyTitle}>Recent Sessions</Text>
-            <ScrollView style={styles.historyList}>
+            <Text style={styles.historyTitle}>Recent Activity</Text>
+            <ScrollView style={styles.historyList} showsVerticalScrollIndicator={false}>
               {sessions.length === 0 ? (
-                <Text style={styles.emptyText}>
-                  No sessions yet - start your first practice!
-                </Text>
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyText}>
+                    No sessions recorded.
+                  </Text>
+                  <Text style={styles.emptySubText}>
+                    Begin your journey today.
+                  </Text>
+                </View>
               ) : (
                 sessions.slice(0, 20).map(session => (
                   <View key={session.id} style={styles.historyItem}>
-                    <Text style={styles.historyDate}>
-                      {new Date(session.date).toLocaleDateString()}
-                    </Text>
-                    <Text style={styles.historyDetails}>
-                      {session.completedRounds} rounds • Best: {formatTime(Math.max(...session.holdTimes))}
-                    </Text>
+                    <View>
+                      <Text style={styles.historyDate}>
+                        {new Date(session.date).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </Text>
+                      <Text style={styles.historyTime}>
+                        {new Date(session.date).toLocaleTimeString(undefined, {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                    </View>
+                    <View style={styles.historyStats}>
+                      <View style={styles.historyStatTag}>
+                         <Text style={styles.historyStatValue}>{session.completedRounds}</Text>
+                         <Text style={styles.historyStatLabel}>rds</Text>
+                      </View>
+                      <View style={styles.historyStatTag}>
+                         <Text style={styles.historyStatValue}>{formatTime(Math.max(...session.holdTimes))}</Text>
+                         <Text style={styles.historyStatLabel}>max</Text>
+                      </View>
+                    </View>
                   </View>
                 ))
               )}
@@ -142,15 +184,11 @@ export const Dashboard: React.FC = () => {
                 {'\n\n'}
                 Never practice while driving, in water, or in any situation where loss of consciousness could be dangerous.
                 {'\n\n'}
-                <Text style={styles.modalTextBold}>IMPORTANT DISCLAIMER:</Text>
+                <Text style={styles.modalTextBold}>IMPORTANT:</Text>
                 {'\n\n'}
-                This app is NOT affiliated with Wim Hof or the official Wim Hof Method. This is a free, personal tool created for educational purposes.
+                This tool is for educational purposes only and is not affiliated with the Wim Hof Method.
                 {'\n\n'}
-                For the official Wim Hof Method training, resources, and guidance, please visit:
-                {'\n'}
-                <Text style={styles.modalTextHighlight}>wimhofmethod.com</Text>
-                {'\n\n'}
-                If you have any medical conditions, consult a healthcare professional before starting any breathing practice.
+                Consult a healthcare professional before starting any breathing practice.
               </Text>
             </ScrollView>
             <TouchableOpacity style={styles.modalButton} onPress={dismissSafetyWarning}>
@@ -163,7 +201,7 @@ export const Dashboard: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colours.background,
@@ -173,145 +211,192 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.xxxl,
+    marginBottom: theme.spacing.xxl,
     marginTop: theme.spacing.lg,
   },
   title: {
     color: theme.colours.text,
-    ...theme.typography.display,
+    fontSize: 28,
+    fontWeight: '600',
+    letterSpacing: -0.8,
+    fontFamily: 'System',
+  },
+  subtitle: {
+    color: theme.colours.textSecondary,
+    fontSize: 14,
+    fontWeight: '400',
+    marginTop: 4,
+    marginLeft: 44, // Align with text of Logo (approx 32+12)
+    letterSpacing: -0.2,
   },
   settingsButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: 'transparent',
+    borderRadius: 8,
+    backgroundColor: theme.colours.backgroundElevated,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colours.border,
   },
   settingsIcon: {
-    fontSize: 20,
-    opacity: 0.6,
+    fontSize: 18,
     color: theme.colours.textSecondary,
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.xxxl,
-    paddingHorizontal: theme.spacing.xs,
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.xl,
   },
   statItem: {
     flex: 1,
     backgroundColor: theme.colours.backgroundElevated,
-    padding: theme.spacing.lg,
-    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
     borderWidth: 1,
     borderColor: theme.colours.borderSubtle,
-    marginHorizontal: theme.spacing.xs,
+    alignItems: 'center',
   },
   statValue: {
     color: theme.colours.text,
-    ...theme.typography.title,
-    marginBottom: theme.spacing.xs,
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
-    color: theme.colours.textSecondary,
-    ...theme.typography.caption,
+    color: theme.colours.textTertiary,
+    fontSize: 11,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   startButton: {
-    backgroundColor: theme.colours.primary,
+    backgroundColor: theme.colours.text, // High contrast button
     paddingVertical: theme.spacing.lg,
     paddingHorizontal: theme.spacing.xl,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.md,
     alignItems: 'center',
     marginBottom: theme.spacing.xxxl,
     ...theme.shadows.sm,
   },
   startButtonText: {
-    color: '#ffffff',
-    ...theme.typography.heading,
+    color: theme.colours.background, // Inverted text color
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   historyContainer: {
     flex: 1,
   },
   historyTitle: {
-    color: theme.colours.text,
-    ...theme.typography.heading,
-    marginBottom: theme.spacing.lg,
+    color: theme.colours.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: theme.spacing.md,
   },
   historyList: {
     flex: 1,
   },
   historyItem: {
-    backgroundColor: theme.colours.backgroundElevated,
-    padding: theme.spacing.lg,
-    borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colours.borderSubtle,
+    paddingVertical: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colours.borderSubtle,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   historyDate: {
     color: theme.colours.text,
-    ...theme.typography.bodyMedium,
-    marginBottom: theme.spacing.xs,
+    fontSize: 15,
+    fontWeight: '500',
   },
-  historyDetails: {
-    color: theme.colours.textSecondary,
-    ...theme.typography.caption,
+  historyTime: {
+    color: theme.colours.textTertiary,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  historyStats: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
+  historyStatTag: {
+    alignItems: 'flex-end',
+  },
+  historyStatValue: {
+    color: theme.colours.text,
+    fontSize: 14,
+    fontWeight: '500',
+    fontVariant: ['tabular-nums'],
+  },
+  historyStatLabel: {
+    color: theme.colours.textTertiary,
+    fontSize: 10,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.xxxl,
   },
   emptyText: {
+    color: theme.colours.textSecondary,
+    fontSize: 15,
+    marginBottom: theme.spacing.xs,
+  },
+  emptySubText: {
     color: theme.colours.textTertiary,
-    ...theme.typography.body,
-    textAlign: 'center',
-    marginTop: theme.spacing.xxxl,
+    fontSize: 13,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: theme.spacing.xl,
   },
   modalContent: {
     backgroundColor: theme.colours.backgroundElevated,
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.xxl,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
     width: '100%',
     maxHeight: '80%',
     borderWidth: 1,
-    borderColor: theme.colours.borderSubtle,
+    borderColor: theme.colours.border,
   },
   modalScroll: {
     maxHeight: 400,
   },
   modalTitle: {
     color: theme.colours.text,
-    ...theme.typography.display,
+    fontSize: 20,
+    fontWeight: '600',
     textAlign: 'center',
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
   modalText: {
     color: theme.colours.textSecondary,
-    ...theme.typography.body,
-    textAlign: 'left',
+    fontSize: 15,
+    lineHeight: 24,
   },
   modalTextBold: {
-    color: theme.colours.primary,
-    ...theme.typography.bodyMedium,
+    color: theme.colours.text,
+    fontWeight: '600',
   },
   modalTextHighlight: {
-    color: theme.colours.success,
-    ...theme.typography.bodyMedium,
+    color: theme.colours.accent,
   },
   modalButton: {
-    backgroundColor: theme.colours.primary,
-    paddingVertical: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.xl,
-    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colours.text,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
     alignItems: 'center',
     marginTop: theme.spacing.xl,
   },
   modalButtonText: {
-    color: '#ffffff',
-    ...theme.typography.heading,
+    color: theme.colours.background,
+    fontWeight: '600',
+    fontSize: 15,
   },
 });

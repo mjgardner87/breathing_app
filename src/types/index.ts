@@ -2,6 +2,7 @@ export interface UserPreferences {
   breathsPerRound: number;
   numberOfRounds: number;
   recoveryDuration: number;
+  breathingSpeed: number; // seconds per breath cycle (inhale + exhale)
 }
 
 export interface SessionData {
