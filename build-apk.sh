@@ -42,18 +42,29 @@ if [ "$JAVA_VERSION" != "17" ] && [ "$JAVA_VERSION" != "18" ] && [ "$JAVA_VERSIO
 fi
 echo "✅ Java: $(java -version 2>&1 | head -n 1)"
 
-# Check Android SDK
-if [ -z "$ANDROID_HOME" ]; then
-    echo "❌ ANDROID_HOME is not set"
-    echo "   Set it in ~/.bashrc: export ANDROID_HOME=\$HOME/Android/Sdk"
+# Check Android SDK (support both modern and legacy env vars)
+SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+if [ -z "$SDK_ROOT" ]; then
+    echo "❌ Android SDK path not set"
+    echo "   Set one of these in your shell profile:"
+    echo "     export ANDROID_SDK_ROOT=\$HOME/Android/Sdk"
+    echo "     export ANDROID_HOME=\$HOME/Android/Sdk"
     echo "   See INSTALL.md for full setup instructions"
     exit 1
 fi
-if [ ! -d "$ANDROID_HOME" ]; then
-    echo "❌ ANDROID_HOME points to non-existent directory: $ANDROID_HOME"
+if [ ! -d "$SDK_ROOT" ]; then
+    echo "❌ Android SDK directory does not exist: $SDK_ROOT"
     exit 1
 fi
-echo "✅ ANDROID_HOME: $ANDROID_HOME"
+echo "✅ Android SDK: $SDK_ROOT"
+
+# Ensure Gradle can locate the SDK even if the environment isn't inherited.
+# (This file is normally gitignored; it's safe to generate locally.)
+LOCAL_PROPERTIES_PATH="android/local.properties"
+if [ ! -f "$LOCAL_PROPERTIES_PATH" ]; then
+    echo "Creating $LOCAL_PROPERTIES_PATH with sdk.dir..."
+    printf "sdk.dir=%s\n" "$SDK_ROOT" > "$LOCAL_PROPERTIES_PATH"
+fi
 
 echo ""
 echo "All prerequisites met!"

@@ -1780,7 +1780,7 @@ git commit -m "feat: implement Session screen with breathing phase and state tra
 
 **Files:**
 - Create: `src/services/AudioService.ts`
-- Create: `android/app/src/main/res/raw/README.md`
+- Create: `docs/audio-files.md` (documentation; do not place docs under `res/raw/`)
 - Modify: `src/screens/Session.tsx`
 
 **Note:** For v1, we'll create the audio service structure but use placeholder audio files. You'll need to record or source actual audio clips separately.
@@ -1864,7 +1864,7 @@ export const AudioService = new AudioServiceClass();
 mkdir -p android/app/src/main/res/raw
 ```
 
-File: `android/app/src/main/res/raw/README.md`
+File: `docs/audio-files.md`
 
 ```markdown
 # Audio Files
@@ -2005,7 +2005,7 @@ useEffect(() => {
 **Step 4: Commit audio service with minute marker feature**
 
 ```bash
-git add src/services/AudioService.ts android/app/src/main/res/raw/README.md src/screens/Session.tsx docs/
+git add src/services/AudioService.ts src/screens/Session.tsx docs/
 git commit -m "feat: add AudioService with minute marker notifications during breath holds"
 ```
 
