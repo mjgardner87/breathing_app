@@ -1,6 +1,6 @@
-# Installation Guide - Breathing App
+# Installation Guide - Innerfire
 
-This guide provides instructions for installing the Breathing App on your Android device or setting up a development environment.
+This guide provides instructions for installing the Innerfire app on your Android device or setting up a development environment.
 
 ---
 
@@ -9,11 +9,11 @@ This guide provides instructions for installing the Breathing App on your Androi
 The easiest way to use the app is to install the pre-built APK file.
 
 ### Steps
-1. **Download**: Go to the [Releases page](https://github.com/mjgardner87/breathing_app/releases) and download the latest `breathing-app-release.apk`.
+1. **Download**: Go to the [Releases page](https://github.com/mjgardner87/breathing_app/releases) and download the latest `innerfire-release.apk`.
 2. **Transfer**: Move the file to your Android phone (via USB, Drive, etc.).
 3. **Install**: Tap the APK file on your phone.
    - You may need to enable "Install from Unknown Sources" in your settings (Settings → Apps → Special access → Install unknown apps).
-4. **Run**: Open "Breathing App" from your app drawer.
+4. **Run**: Open "Innerfire" from your app drawer.
 
 **Note on Audio**: All necessary audio files (voice cues and bells) are now **bundled** with the application. You do not need to manually download or configure audio files.
 
