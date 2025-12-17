@@ -91,3 +91,5 @@ The core visual component.
 - [ ] Haptic feedback integration for breath pacing.
 - [ ] Custom soundscapes (ambient background noise).
 - [ ] Apple Health / Google Fit integration.
+
+

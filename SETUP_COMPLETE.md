@@ -190,3 +190,5 @@ Your BreathingApp is now fully functional with:
 - ✅ Metro bundler hot-reloading
 
 The app is ready for testing and development!
+
+
