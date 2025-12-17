@@ -15,7 +15,8 @@ If you want the official Wim Hof Method experience, please visit [wimhofmethod.c
 - **Sleek Linear Aesthetic** - A distraction-free, rayscape-inspired interface designed for focus.
 - **Light & Dark Mode** - Automatically syncs with your system settings, or can be manually toggled to your preference (Crisp Air Light or Deep Frozen Night).
 - **Guided Breathing Sessions** - Automated visual animations and audio cues for the complete breathing cycle.
-- **Audio Cues** - Voice guidance ("Breathe in", "Hold", etc.) and minute marker bells included.
+- **Pause Control** - Tap once to pause or resume the breathing wave without losing your place in the round.
+- **Audio Cues** - Subtle inhale/exhale soundscapes plus voice prompts for holds, recovery breaths, and minute markers.
 - **Session History** - Local storage of all completed sessions with breath hold times.
 - **Customisable Protocols** - Adjustable breaths per round, number of rounds, breathing pace, and recovery breath duration.
 - **Minute Markers** - Audio notification every minute during breath holds to track progress.
@@ -51,14 +52,15 @@ See [INSTALL.md](INSTALL.md) for detailed development environment setup and buil
 
 ## 🔊 Audio
 
-The app comes **pre-packaged** with all necessary audio files (voice cues and bells). No additional setup is required.
+The app comes **pre-packaged** with all necessary audio files. Breathing guidance now uses soft inhale/exhale textures instead of repeated spoken prompts, while the remaining cues stay voiced for clarity.
 
 **Included Sounds:**
-- Voice guidance: "Breathe in", "Breathe out", "Hold", "Recovery breath", "Release", "Round complete".
+- Ambient breath textures: Inhale, Exhale.
+- Voice guidance: "Hold", "Recovery breath", "Release", "Round complete".
 - Minute marker: A gentle bell that plays every 60 seconds during breath holds.
 
 ### Replacing Default Audio (Optional)
-If you are a developer and want to use different sounds, you can replace the files in the source code before building the app. See [INSTALL.md](INSTALL.md#replacing-default-audio-optional) for details.
+If you are a developer and want to use different sounds, you can replace the files in the source code before building the app or re-run `./generate-audio.sh` to recreate the stock pack. See [INSTALL.md](INSTALL.md#replacing-default-audio-optional) for details.
 
 ## Development
 

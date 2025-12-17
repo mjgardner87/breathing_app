@@ -15,7 +15,7 @@ The easiest way to use the app is to install the pre-built APK file.
    - You may need to enable "Install from Unknown Sources" in your settings (Settings → Apps → Special access → Install unknown apps).
 4. **Run**: Open "Innerfire" from your app drawer.
 
-**Note on Audio**: All necessary audio files (voice cues and bells) are now **bundled** with the application. You do not need to manually download or configure audio files.
+**Note on Audio**: All necessary audio files (breath textures, voice cues, and bells) are now **bundled** with the application. You do not need to manually download or configure audio files.
 
 ---
 
@@ -68,7 +68,7 @@ Follow these steps if you want to contribute to the code or build the app yourse
 
 ## Replacing Default Audio (Optional - Developers Only)
 
-The app comes with default AI-generated voice cues. If you wish to build a custom version of the app with your own voice or sounds, you can replace the bundled files.
+The app ships with airy inhale/exhale textures plus calm voice cues. If you wish to build a custom version with your own sounds, you can replace the bundled files or re-run the generator script.
 
 ### File Location
 Audio files are located in: `android/app/src/main/res/raw/`
@@ -83,6 +83,11 @@ Ensure your custom files match these filenames exactly (must be lowercase, `.wav
 - `release.wav`
 - `round_complete.wav`
 - `minute_marker.wav`
+
+You can recreate the stock pack anytime by running:
+```bash
+./generate-audio.sh
+```
 
 After replacing files, you must rebuild the app:
 ```bash

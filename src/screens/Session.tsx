@@ -26,6 +26,7 @@ export const Session: React.FC = () => {
   const [holdTimer, setHoldTimer] = useState(0);
   const lastMinuteMarker = useRef(0); // Track last minute marker played
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     loadPreferences();
@@ -40,37 +41,51 @@ export const Session: React.FC = () => {
 
   // Breathing phase auto-increment with audio cues
   useEffect(() => {
-    if (state.currentPhase === 'breathing') {
-      const breathCycleMs = prefs.breathingSpeed * 1000; // Convert to milliseconds
-      const inhaleMs = breathCycleMs * 0.55; // 55% for inhale
-
-      // Play initial breath in sound
-      AudioService.play('breathe_in');
-
-      // Schedule breath out sound
-      const breathOutTimeout = setTimeout(() => {
-        AudioService.play('breathe_out');
-      }, inhaleMs);
-
-      // Set up interval for subsequent breaths
-      const breathInterval = setInterval(() => {
-        incrementBreath();
-
-        // Play breath in sound
-        AudioService.play('breathe_in');
-
-        // Schedule breath out sound
-        setTimeout(() => {
-          AudioService.play('breathe_out');
-        }, inhaleMs);
-      }, breathCycleMs);
-
-      return () => {
-        clearInterval(breathInterval);
-        clearTimeout(breathOutTimeout);
-      };
+    if (state.currentPhase !== 'breathing' || isPaused) {
+      return;
     }
-  }, [state.currentPhase, incrementBreath, prefs.breathingSpeed]);
+
+    const breathCycleMs = prefs.breathingSpeed * 1000; // Convert to milliseconds
+    const inhaleMs = breathCycleMs * 0.55; // 55% for inhale
+    let breathOutTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleBreathOut = () => {
+      if (breathOutTimeout) {
+        clearTimeout(breathOutTimeout);
+      }
+
+      breathOutTimeout = setTimeout(() => {
+        AudioService.play('breathe_out');
+        breathOutTimeout = null;
+      }, inhaleMs);
+    };
+
+    AudioService.play('breathe_in');
+    scheduleBreathOut();
+
+    const breathInterval = setInterval(() => {
+      incrementBreath();
+      AudioService.play('breathe_in');
+      scheduleBreathOut();
+    }, breathCycleMs);
+
+    return () => {
+      clearInterval(breathInterval);
+      if (breathOutTimeout) {
+        clearTimeout(breathOutTimeout);
+      }
+    };
+  }, [state.currentPhase, incrementBreath, prefs.breathingSpeed, isPaused]);
+
+  useEffect(() => {
+    if (state.currentPhase !== 'breathing' && isPaused) {
+      setIsPaused(false);
+    }
+  }, [state.currentPhase, isPaused]);
+
+  const handleTogglePause = () => {
+    setIsPaused(prev => !prev);
+  };
 
   // Hold timer with minute marker notifications
   useEffect(() => {
@@ -176,9 +191,15 @@ export const Session: React.FC = () => {
             <BreathingCircle
               breathCount={state.breathCount}
               totalBreaths={prefs.breathsPerRound}
-              isAnimating={true}
+              isAnimating={!isPaused}
               breathingSpeed={prefs.breathingSpeed}
             />
+            <TouchableOpacity style={styles.pauseButton} onPress={handleTogglePause}>
+              <Text style={styles.pauseButtonText}>
+                {isPaused ? 'Resume Breathing' : 'Pause Breathing'}
+              </Text>
+            </TouchableOpacity>
+            {isPaused && <Text style={styles.pauseHelperText}>Session Paused</Text>}
           </>
         );
 
@@ -250,10 +271,14 @@ export const Session: React.FC = () => {
               <TouchableOpacity
                 style={styles.modalButtonSecondary}
                 onPress={() => setShowCancelConfirm(false)}>
-                <Text style={[styles.modalButtonText, {color: theme.colours.text}]}>Resume</Text>
+                <Text style={[styles.modalButtonText, styles.modalButtonSecondaryText]}>
+                  Resume
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalButton} onPress={confirmCancel}>
-                <Text style={[styles.modalButtonText, {color: '#fff'}]}>End Session</Text>
+                <Text style={[styles.modalButtonText, styles.modalButtonPrimaryText]}>
+                  End Session
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -304,6 +329,27 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: theme.spacing.xl,
+  },
+  pauseButton: {
+    alignSelf: 'center',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xl,
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: theme.colours.borderSubtle,
+    backgroundColor: theme.colours.backgroundElevated,
+    marginTop: theme.spacing.lg,
+  },
+  pauseButtonText: {
+    color: theme.colours.text,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+  },
+  pauseHelperText: {
+    marginTop: theme.spacing.xs,
+    textAlign: 'center',
+    color: theme.colours.textSecondary,
+    fontSize: 14,
   },
   holdContainer: {
     flex: 1,
@@ -410,15 +456,21 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   modalButtonSecondary: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: theme.colours.background,
     paddingVertical: theme.spacing.lg,
     borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.colours.borderSubtle,
+    borderColor: theme.colours.border,
   },
   modalButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalButtonPrimaryText: {
+    color: theme.isDark ? theme.colours.background : '#FFFFFF',
+  },
+  modalButtonSecondaryText: {
+    color: theme.colours.text,
   },
 });
