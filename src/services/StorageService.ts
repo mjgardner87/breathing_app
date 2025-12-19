@@ -8,6 +8,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   breathsPerRound: 30,
   numberOfRounds: 3,
   recoveryDuration: 15,
+  breathingSpeed: 2.0,
 };
 
 export class StorageService {
@@ -53,6 +54,15 @@ export class StorageService {
       await AsyncStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
     } catch (error) {
       console.error('Failed to save session:', error);
+      throw error;
+    }
+  }
+
+  static async clearSessions(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(SESSIONS_KEY);
+    } catch (error) {
+      console.error('Failed to clear sessions:', error);
       throw error;
     }
   }

@@ -107,20 +107,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     elevation: 10,
   },
   breathCount: {
-    color: theme.colours.background, // Inverted text since it sits on the circle?
-    // Wait, the circle scales up and down. If the text is ON TOP of the circle, it needs to contrast with the circle color.
-    // If the circle is 'text' color (white in dark mode), the text should be 'background' color (black).
-    // But when the circle is small (scale 0.4), the text might be outside or clipping?
-    // Actually, let's put the text in the absolute center, zIndex above the circle.
-    // And blend mode? No, just good contrast.
     zIndex: 10,
     fontSize: 64,
     fontWeight: '300',
     fontVariant: ['tabular-nums'],
-    // Use mixBlendMode if possible? React Native doesn't support it easily.
-    // Let's make the text color dynamic or use a distinct color.
-    // If circle is White, text Black.
-    color: theme.isDark ? '#000000' : '#FFFFFF',
+    color: theme.colours.background,
     textShadowColor: 'rgba(0,0,0,0.1)',
     textShadowOffset: {width: 0, height: 1},
     textShadowRadius: 4,
@@ -128,5 +119,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   breathTotal: {
     fontSize: 24,
     opacity: 0.6,
+    color: theme.colours.background,
   },
 });

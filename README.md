@@ -17,11 +17,18 @@ If you want the official Wim Hof Method experience, please visit [wimhofmethod.c
 - **Guided Breathing Sessions** - Automated visual animations and audio cues for the complete breathing cycle.
 - **Pause Control** - Tap once to pause or resume the breathing wave without losing your place in the round.
 - **Audio Cues** - Subtle inhale/exhale soundscapes plus voice prompts for holds, recovery breaths, and minute markers.
-- **Session History** - Local storage of all completed sessions with breath hold times.
+- **Session History & Trends** - Local storage of every session plus a dedicated History screen with rolling averages, streaks, and a full log of hold times.
 - **Customisable Protocols** - Adjustable breaths per round, number of rounds, breathing pace, and recovery breath duration.
 - **Minute Markers** - Audio notification every minute during breath holds to track progress.
 - **Always-On Display** - Screen stays awake during active sessions.
 - **Privacy-First** - All data stored locally on your device, no account required.
+
+## Tracking Your Progress
+
+- **Where your data lives:** Session preferences and history are stored on-device only using AsyncStorage. Nothing leaves your phone.
+- **Quick glance:** The Dashboard shows total sessions, best hold, and the last twenty activities. Tap **View History & Trends** to dive deeper.
+- **History screen:** Review every session, see a rolling average of your recent holds, monitor daily streaks, and clear the timeline if you want a fresh start.
+- **Trend logic:** Rolling averages look at your last seven sessions and compare them against the previous window to highlight whether you are progressing or need more consistency.
 
 ## The Breathing Technique
 
@@ -67,6 +74,7 @@ If you are a developer and want to use different sounds, you can replace the fil
 ### Project Structure
 
 ```
+
 Innerfire/
 ├── src/
 │   ├── screens/          # Dashboard, Settings, Session screens

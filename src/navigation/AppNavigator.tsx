@@ -4,6 +4,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {Dashboard} from '../screens/Dashboard';
 import {Settings} from '../screens/Settings';
 import {Session} from '../screens/Session';
+import {History} from '../screens/History';
 import {useTheme} from '../context/ThemeContext';
 import {StatusBar} from 'react-native';
 
@@ -11,6 +12,7 @@ export type RootStackParamList = {
   Dashboard: undefined;
   Settings: undefined;
   Session: undefined;
+  History: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -49,6 +51,7 @@ export const AppNavigator: React.FC = () => {
         <Stack.Screen name="Dashboard" component={Dashboard} />
         <Stack.Screen name="Settings" component={Settings} />
         <Stack.Screen name="Session" component={Session} />
+        <Stack.Screen name="History" component={History} />
       </Stack.Navigator>
     </NavigationContainer>
   );

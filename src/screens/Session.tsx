@@ -375,7 +375,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     shadowColor: theme.colours.primary,
   },
   doneButtonText: {
-    color: '#ffffff',
+    color: theme.isDark ? theme.colours.background : theme.colours.backgroundElevated,
     ...theme.typography.title,
     fontWeight: '700',
   },
@@ -411,7 +411,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     ...theme.shadows.md,
   },
   finishButtonText: {
-    color: '#ffffff',
+    color: theme.isDark ? theme.colours.background : theme.colours.backgroundElevated,
     ...theme.typography.heading,
   },
   modalOverlay: {
@@ -468,7 +468,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
   },
   modalButtonPrimaryText: {
-    color: theme.isDark ? theme.colours.background : '#FFFFFF',
+    color: theme.isDark ? theme.colours.background : theme.colours.backgroundElevated,
   },
   modalButtonSecondaryText: {
     color: theme.colours.text,

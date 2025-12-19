@@ -120,6 +120,11 @@ export const Dashboard: React.FC = () => {
             onPress={() => navigation.navigate('Session')}>
             <Text style={styles.startButtonText}>Start Session</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => navigation.navigate('History')}>
+            <Text style={styles.secondaryButtonText}>View History & Trends</Text>
+          </TouchableOpacity>
 
           {/* Session History */}
           <View style={styles.historyContainer}>
@@ -157,7 +162,11 @@ export const Dashboard: React.FC = () => {
                          <Text style={styles.historyStatLabel}>rds</Text>
                       </View>
                       <View style={styles.historyStatTag}>
-                         <Text style={styles.historyStatValue}>{formatTime(Math.max(...session.holdTimes))}</Text>
+                         <Text style={styles.historyStatValue}>
+                           {formatTime(
+                             session.holdTimes.length ? Math.max(...session.holdTimes) : 0
+                           )}
+                         </Text>
                          <Text style={styles.historyStatLabel}>max</Text>
                       </View>
                     </View>
@@ -277,12 +286,26 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: theme.spacing.xl,
     borderRadius: theme.borderRadius.md,
     alignItems: 'center',
-    marginBottom: theme.spacing.xxxl,
+    marginBottom: theme.spacing.md,
     ...theme.shadows.sm,
   },
   startButtonText: {
     color: theme.colours.background, // Inverted text color
     fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: theme.colours.border,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+    marginBottom: theme.spacing.xxxl,
+  },
+  secondaryButtonText: {
+    color: theme.colours.textSecondary,
+    fontSize: 14,
     fontWeight: '600',
     letterSpacing: -0.2,
   },

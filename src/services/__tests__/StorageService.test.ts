@@ -23,13 +23,19 @@ describe('StorageService', () => {
         breathsPerRound: 30,
         numberOfRounds: 3,
         recoveryDuration: 15,
+        breathingSpeed: 2.0,
       });
     });
   });
 
   describe('savePreferences', () => {
     it('saves preferences to AsyncStorage', async () => {
-      const prefs = {breathsPerRound: 40, numberOfRounds: 4, recoveryDuration: 20};
+      const prefs = {
+        breathsPerRound: 40,
+        numberOfRounds: 4,
+        recoveryDuration: 20,
+        breathingSpeed: 2.5,
+      };
 
       await StorageService.savePreferences(prefs);
 
@@ -56,7 +62,12 @@ describe('StorageService', () => {
           date: '2025-12-14T10:00:00Z',
           completedRounds: 3,
           holdTimes: [90, 120, 150],
-          settings: {breathsPerRound: 30, numberOfRounds: 3, recoveryDuration: 15},
+          settings: {
+            breathsPerRound: 30,
+            numberOfRounds: 3,
+            recoveryDuration: 15,
+            breathingSpeed: 2.0,
+          },
         },
       ];
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(mockSessions));
@@ -75,7 +86,12 @@ describe('StorageService', () => {
           date: '2025-12-14T10:00:00Z',
           completedRounds: 3,
           holdTimes: [90],
-          settings: {breathsPerRound: 30, numberOfRounds: 3, recoveryDuration: 15},
+          settings: {
+            breathsPerRound: 30,
+            numberOfRounds: 3,
+            recoveryDuration: 15,
+            breathingSpeed: 2.0,
+          },
         },
       ];
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(existingSessions));
@@ -85,7 +101,12 @@ describe('StorageService', () => {
         date: '2025-12-14T11:00:00Z',
         completedRounds: 3,
         holdTimes: [100],
-        settings: {breathsPerRound: 30, numberOfRounds: 3, recoveryDuration: 15},
+        settings: {
+          breathsPerRound: 30,
+          numberOfRounds: 3,
+          recoveryDuration: 15,
+          breathingSpeed: 2.0,
+        },
       };
 
       await StorageService.saveSession(newSession);
@@ -94,6 +115,14 @@ describe('StorageService', () => {
         '@breathingapp:sessions',
         JSON.stringify([newSession, ...existingSessions])
       );
+    });
+  });
+
+  describe('clearSessions', () => {
+    it('removes persisted sessions', async () => {
+      await StorageService.clearSessions();
+
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@breathingapp:sessions');
     });
   });
 });

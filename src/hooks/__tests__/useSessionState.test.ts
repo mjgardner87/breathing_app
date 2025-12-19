@@ -6,6 +6,7 @@ describe('useSessionState', () => {
     breathsPerRound: 30,
     numberOfRounds: 3,
     recoveryDuration: 15,
+    breathingSpeed: 2.0,
   };
 
   it('initializes in breathing phase', () => {
