@@ -128,30 +128,26 @@ export const Session: React.FC = () => {
   useEffect(() => {
     if (state.currentPhase === 'complete') {
       AudioService.play('round_complete');
-      saveSession();
+      // Save session with proper error handling
+      const saveSessionData = async () => {
+        try {
+          const session = {
+            id: uuidv4(),
+            date: new Date().toISOString(),
+            completedRounds: state.currentRound,
+            holdTimes: state.holdTimes,
+            settings: prefs,
+          };
+          await StorageService.saveSession(session);
+          console.log('[Session] Successfully saved session:', session.id);
+        } catch (error) {
+          console.error('[Session] Failed to save session:', error);
+          // Session data is still displayed to user even if save fails
+        }
+      };
+      saveSessionData();
     }
-  }, [state.currentPhase]);
-
-  const loadPreferences = async () => {
-    const data = await StorageService.getPreferences();
-    // Ensure breathingSpeed exists (for backwards compatibility)
-    setPrefs({
-      ...data,
-      breathingSpeed: data.breathingSpeed ?? 2.0,
-    });
-  };
-
-  const saveSession = async () => {
-    const session = {
-      id: uuidv4(),
-      date: new Date().toISOString(),
-      completedRounds: state.currentRound,
-      holdTimes: state.holdTimes,
-      settings: prefs,
-    };
-
-    await StorageService.saveSession(session);
-  };
+  }, [state.currentPhase, state.currentRound, state.holdTimes, prefs]);
 
   const handleDoneHolding = () => {
     completeHold(holdTimer);

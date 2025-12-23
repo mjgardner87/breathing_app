@@ -66,20 +66,51 @@ def generate_breath(path: Path, duration: float, direction: str) -> None:
     _write_wav(path, samples)
 
 
-def generate_bell(path: Path, duration: float, frequency: float) -> None:
+def generate_bell(path: Path, duration: float, frequency: float = 880.0) -> None:
+    """Generate a realistic bell/chime sound with rich harmonics and natural decay."""
     total_samples = int(SAMPLE_RATE * duration)
     samples: list[float] = []
 
     for i in range(total_samples):
         t = i / SAMPLE_RATE
-        envelope = math.exp(-3.5 * t / duration)
+
+        # Natural exponential decay envelope with slight attack
+        attack_time = 0.05  # Quick attack
+        if t < attack_time:
+            attack_envelope = t / attack_time
+        else:
+            attack_envelope = 1.0
+        decay_envelope = math.exp(-2.8 * t / duration) * attack_envelope
+
+        # Rich harmonic series for bell-like timbre
+        # Fundamental (880 Hz - A5 note, pleasant and clear)
         fundamental = math.sin(2 * math.pi * frequency * t)
-        harmonic = 0.4 * math.sin(2 * math.pi * frequency * 2.01 * t)
-        shimmer = 0.2 * math.sin(2 * math.pi * frequency * 2.51 * t)
-        sample = (fundamental + harmonic + shimmer) * envelope * 0.7
+
+        # Harmonic series typical of bells
+        harmonic2 = 0.5 * math.sin(2 * math.pi * frequency * 2.0 * t)  # Octave
+        harmonic3 = 0.35 * math.sin(2 * math.pi * frequency * 3.0 * t)  # Perfect fifth above octave
+        harmonic4 = 0.25 * math.sin(2 * math.pi * frequency * 4.0 * t)  # Two octaves
+        harmonic5 = 0.15 * math.sin(2 * math.pi * frequency * 5.76 * t)  # Slight detune for shimmer
+
+        # Add subtle inharmonic partials for metallic character
+        inharmonic1 = 0.12 * math.sin(2 * math.pi * frequency * 2.76 * t)
+        inharmonic2 = 0.08 * math.sin(2 * math.pi * frequency * 4.24 * t)
+
+        # Combine all components with natural decay
+        sample = (
+            fundamental +
+            harmonic2 +
+            harmonic3 +
+            harmonic4 +
+            harmonic5 +
+            inharmonic1 +
+            inharmonic2
+        ) * decay_envelope * 0.65  # Slightly quieter for pleasant listening
+
         samples.append(sample)
 
-    _apply_fade(samples, fade_seconds=0.2)
+    # Apply smooth fade to prevent clicks
+    _apply_fade(samples, fade_seconds=0.15)
     _write_wav(path, samples)
 
 
@@ -119,7 +150,7 @@ def main() -> int:
         return 0
 
     if mode == "bell":
-        frequency = float(sys.argv[4]) if len(sys.argv) > 4 else 432.0
+        frequency = float(sys.argv[4]) if len(sys.argv) > 4 else 880.0
         generate_bell(output, duration, frequency)
         print(f"Created bell sound: {output}")
         return 0
@@ -130,5 +161,9 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+
+
 
 

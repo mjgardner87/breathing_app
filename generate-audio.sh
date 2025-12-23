@@ -21,6 +21,13 @@ if ! command -v espeak-ng &> /dev/null; then
     exit 1
 fi
 
+# Check if sox is available (optional, for audio post-processing)
+if ! command -v sox &> /dev/null; then
+    echo "⚠️  sox not found - audio will be generated without post-processing"
+    echo "   Install for better quality: sudo dnf install sox"
+    echo "   Continuing without sox..."
+fi
+
 # Ensure python is available for SFX generation
 if ! command -v python3 &> /dev/null; then
     echo "❌ python3 is required to generate breath sounds"
@@ -41,7 +48,7 @@ mkdir -p "$TEMP_DIR"
 echo "Generating audio files..."
 echo ""
 
-# Function to generate voice audio
+# Function to generate voice audio with improved quality
 generate_audio() {
     local text="$1"
     local filename="$2"
@@ -50,14 +57,31 @@ generate_audio() {
 
     echo "  Generating: $filename"
 
+    # Use mbrola voice if available (much more natural), otherwise fall back to espeak-ng
+    # mbrola voices are more natural but require separate installation
+    # For now, optimize espeak-ng with better parameters for more natural sound
     espeak-ng -v en-us+f3 \
         -p "$pitch" \
         -s "$speed" \
         -a 100 \
+        -g 2 \
+        -k 1 \
         -w "$TEMP_DIR/${filename}.wav" \
         "$text"
 
-    cp "$TEMP_DIR/${filename}.wav" "$OUTPUT_DIR/${filename}.wav"
+    # Post-process with sox if available to add subtle reverb and EQ for warmth
+    if command -v sox &> /dev/null; then
+        sox "$TEMP_DIR/${filename}.wav" "$TEMP_DIR/${filename}_processed.wav" \
+            gain -3 \
+            reverb 10 50 50 \
+            highpass 80 \
+            lowpass 8000 \
+            2>/dev/null || cp "$TEMP_DIR/${filename}.wav" "$TEMP_DIR/${filename}_processed.wav"
+        cp "$TEMP_DIR/${filename}_processed.wav" "$OUTPUT_DIR/${filename}.wav"
+    else
+        cp "$TEMP_DIR/${filename}.wav" "$OUTPUT_DIR/${filename}.wav"
+    fi
+
     echo "    ✓ Created: $OUTPUT_DIR/${filename}.wav"
 }
 
@@ -82,16 +106,19 @@ generate_bell() {
 
 # Generate all voice files
 # Parameters: text, filename, pitch (30-99, higher=calmer), speed (80-450, lower=calmer)
+# Optimized for more natural, calming voice with better pacing
 
 generate_breath_sfx "breathe_in" "2.2" "inhale"
 generate_breath_sfx "breathe_out" "2.0" "exhale"
-generate_audio "Hold your breath" "hold_breath" "60" "130"
-generate_audio "Take a deep breath in, and hold" "recovery_breath" "60" "120"
-generate_audio "Release" "release" "65" "140"
-generate_audio "Round complete" "round_complete" "60" "130"
 
-# Generate bell/chime for minute marker
-generate_bell "minute_marker" "1.5"
+# More natural phrasing and pacing for better user experience
+generate_audio "Hold your breath" "hold_breath" "65" "110"  # Slightly higher pitch, slower pace
+generate_audio "Take a deep breath in, and hold" "recovery_breath" "65" "105"  # Calmer, more measured
+generate_audio "Release" "release" "68" "115"  # Gentle, clear
+generate_audio "Round complete" "round_complete" "65" "110"  # Calming completion cue
+
+# Generate bell/chime for minute marker (880Hz A5 - pleasant, clear bell tone)
+generate_bell "minute_marker" "2.0"
 
 # Cleanup
 rm -rf "$TEMP_DIR"
