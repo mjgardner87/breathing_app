@@ -27,10 +27,6 @@ export const Settings: React.FC = () => {
     breathingSpeed: 2.0,
   });
 
-  useEffect(() => {
-    loadPreferences();
-  }, []);
-
   const loadPreferences = async () => {
     try {
       const data = await StorageService.getPreferences();
@@ -44,6 +40,10 @@ export const Settings: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadPreferences();
+  }, []);
 
   const updatePreference = async (key: keyof UserPreferences, value: number) => {
     const newPrefs = {...prefs, [key]: value};

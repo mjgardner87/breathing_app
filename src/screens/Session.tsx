@@ -28,6 +28,18 @@ export const Session: React.FC = () => {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
 
+  const loadPreferences = async () => {
+    try {
+      const data = await StorageService.getPreferences();
+      setPrefs({
+        ...data,
+        breathingSpeed: data.breathingSpeed ?? 2.0,
+      });
+    } catch (error) {
+      console.error('Failed to load preferences:', error);
+    }
+  };
+
   useEffect(() => {
     loadPreferences();
     keepAwakeActivate();

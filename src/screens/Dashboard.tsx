@@ -30,18 +30,6 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showSafetyWarning, setShowSafetyWarning] = useState(false);
 
-  useEffect(() => {
-    loadSessions();
-    checkFirstLaunch();
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadSessions();
-    });
-    return unsubscribe;
-  }, [navigation]);
-
   const checkFirstLaunch = async () => {
     try {
       const hasSeenWarning = await AsyncStorage.getItem('@breathingapp:safety_warning_seen');
@@ -72,6 +60,18 @@ export const Dashboard: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadSessions();
+    checkFirstLaunch();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadSessions();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const stats = calculateStats(sessions);
 
