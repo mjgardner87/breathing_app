@@ -27,6 +27,10 @@ export const Session: React.FC = () => {
   const lastMinuteMarker = useRef(0); // Track last minute marker played
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [sessionSaved, setSessionSaved] = useState(false);
+  const savePromiseRef = useRef<Promise<void> | null>(null);
+  const isSavingRef = useRef(false); // Guard against concurrent saves
 
   const loadPreferences = async () => {
     try {
@@ -136,12 +140,15 @@ export const Session: React.FC = () => {
     }
   }, [state.currentPhase, prefs.recoveryDuration, completeRecovery]);
 
-  // Session complete - save and navigate
+  // Session complete - save session data
   useEffect(() => {
-    if (state.currentPhase === 'complete') {
+    if (state.currentPhase === 'complete' && !sessionSaved && !isSaving && !isSavingRef.current) {
       AudioService.play('round_complete');
       // Save session with proper error handling
       const saveSessionData = async () => {
+        // Set guard immediately to prevent concurrent saves
+        isSavingRef.current = true;
+        setIsSaving(true);
         try {
           const session = {
             id: uuidv4(),
@@ -150,16 +157,23 @@ export const Session: React.FC = () => {
             holdTimes: state.holdTimes,
             settings: prefs,
           };
-          await StorageService.saveSession(session);
+          const savePromise = StorageService.saveSession(session);
+          savePromiseRef.current = savePromise;
+          await savePromise;
           console.log('[Session] Successfully saved session:', session.id);
+          setSessionSaved(true);
         } catch (error) {
           console.error('[Session] Failed to save session:', error);
           // Session data is still displayed to user even if save fails
+        } finally {
+          setIsSaving(false);
+          isSavingRef.current = false;
+          savePromiseRef.current = null;
         }
       };
       saveSessionData();
     }
-  }, [state.currentPhase, state.currentRound, state.holdTimes, prefs]);
+  }, [state.currentPhase, state.currentRound, state.holdTimes, prefs, sessionSaved, isSaving]);
 
   const handleDoneHolding = () => {
     completeHold(holdTimer);
@@ -172,12 +186,58 @@ export const Session: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleFinish = async () => {
+    // If session is complete but not saved yet, trigger save now
+    if (state.currentPhase === 'complete' && !sessionSaved && !isSaving && !isSavingRef.current && !savePromiseRef.current) {
+      // Set guard immediately to prevent concurrent saves
+      isSavingRef.current = true;
+      setIsSaving(true);
+      try {
+        const session = {
+          id: uuidv4(),
+          date: new Date().toISOString(),
+          completedRounds: state.currentRound,
+          holdTimes: state.holdTimes,
+          settings: prefs,
+        };
+        const savePromise = StorageService.saveSession(session);
+        savePromiseRef.current = savePromise;
+        await savePromise;
+        console.log('[Session] Successfully saved session (from handleFinish):', session.id);
+        setSessionSaved(true);
+      } catch (error) {
+        console.error('[Session] Failed to save session (from handleFinish):', error);
+      } finally {
+        setIsSaving(false);
+        isSavingRef.current = false;
+        savePromiseRef.current = null;
+      }
+    }
+
+    // Wait for save to complete if it's still in progress
+    if (savePromiseRef.current) {
+      try {
+        await Promise.race([
+          savePromiseRef.current,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Save timeout')), 5000)
+          ),
+        ]);
+        console.log('[Session] Save completed before navigation');
+      } catch (error) {
+        console.error('[Session] Error waiting for save:', error);
+        // Continue anyway - user can still navigate
+      }
+    }
+    keepAwakeDeactivate();
+    navigation.goBack();
+  };
+
   const handleCancel = () => {
     if (state.currentPhase !== 'complete') {
       setShowCancelConfirm(true);
     } else {
-      keepAwakeDeactivate();
-      navigation.goBack();
+      handleFinish();
     }
   };
 
@@ -247,9 +307,12 @@ export const Session: React.FC = () => {
                 </Text>
               ))}
               <TouchableOpacity
-                style={styles.finishButton}
-                onPress={() => navigation.goBack()}>
-                <Text style={styles.finishButtonText}>Finish</Text>
+                style={[styles.finishButton, isSaving && styles.finishButtonDisabled]}
+                onPress={handleFinish}
+                disabled={isSaving}>
+                <Text style={styles.finishButtonText}>
+                  {isSaving ? 'Saving...' : 'Finish'}
+                </Text>
               </TouchableOpacity>
             </View>
           </>
@@ -417,6 +480,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: theme.borderRadius.xl,
     marginTop: theme.spacing.xxl,
     ...theme.shadows.md,
+  },
+  finishButtonDisabled: {
+    opacity: 0.6,
   },
   finishButtonText: {
     color: theme.isDark ? theme.colours.background : theme.colours.backgroundElevated,
