@@ -18,7 +18,8 @@ export class StorageService {
       if (!data) {
         return DEFAULT_PREFERENCES;
       }
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      return {...DEFAULT_PREFERENCES, ...parsed};
     } catch (error) {
       console.error('Failed to load preferences:', error);
       return DEFAULT_PREFERENCES;
@@ -61,7 +62,8 @@ export class StorageService {
   static async clearSessions(): Promise<void> {
     try {
       await AsyncStorage.removeItem(SESSIONS_KEY);
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to clear sessions:', error);
       throw error;
     }

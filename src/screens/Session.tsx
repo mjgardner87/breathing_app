@@ -31,6 +31,8 @@ export const Session: React.FC = () => {
   const [sessionSaved, setSessionSaved] = useState(false);
   const savePromiseRef = useRef<Promise<void> | null>(null);
   const isSavingRef = useRef(false); // Guard against concurrent saves
+  const saveInitiatedRef = useRef(false); // Track if we've initiated auto-save
+  const isMountedRef = useRef(true); // Track component mount status
 
   const loadPreferences = async () => {
     try {
@@ -48,8 +50,10 @@ export const Session: React.FC = () => {
     loadPreferences();
     keepAwakeActivate();
     AudioService.initialize();
+    isMountedRef.current = true;
 
     return () => {
+      isMountedRef.current = false;
       keepAwakeDeactivate();
       AudioService.release();
     };
@@ -140,15 +144,24 @@ export const Session: React.FC = () => {
     }
   }, [state.currentPhase, prefs.recoveryDuration, completeRecovery]);
 
-  // Session complete - save session data
+  // Session complete - save session data automatically
   useEffect(() => {
-    if (state.currentPhase === 'complete' && !sessionSaved && !isSaving && !isSavingRef.current) {
+    // Only save once when phase becomes 'complete'
+    if (
+      state.currentPhase === 'complete' &&
+      !sessionSaved &&
+      !isSavingRef.current &&
+      !saveInitiatedRef.current
+    ) {
       AudioService.play('round_complete');
+      
+      // Mark that we've initiated the save to prevent duplicates
+      saveInitiatedRef.current = true;
+      isSavingRef.current = true;
+      setIsSaving(true);
+
       // Save session with proper error handling
       const saveSessionData = async () => {
-        // Set guard immediately to prevent concurrent saves
-        isSavingRef.current = true;
-        setIsSaving(true);
         try {
           const session = {
             id: uuidv4(),
@@ -160,10 +173,12 @@ export const Session: React.FC = () => {
           const savePromise = StorageService.saveSession(session);
           savePromiseRef.current = savePromise;
           await savePromise;
-          console.log('[Session] Successfully saved session:', session.id);
+          console.log('[Session] Successfully saved session automatically:', session.id);
           setSessionSaved(true);
         } catch (error) {
-          console.error('[Session] Failed to save session:', error);
+          console.error('[Session] Failed to save session automatically:', error);
+          // Reset flags so user can try saving manually via Finish button
+          saveInitiatedRef.current = false;
           // Session data is still displayed to user even if save fails
         } finally {
           setIsSaving(false);
@@ -171,9 +186,10 @@ export const Session: React.FC = () => {
           savePromiseRef.current = null;
         }
       };
+      
       saveSessionData();
     }
-  }, [state.currentPhase, state.currentRound, state.holdTimes, prefs, sessionSaved, isSaving]);
+  }, [state.currentPhase, state.currentRound, state.holdTimes, prefs, sessionSaved]);
 
   const handleDoneHolding = () => {
     completeHold(holdTimer);
@@ -187,9 +203,8 @@ export const Session: React.FC = () => {
   };
 
   const handleFinish = async () => {
-    // If session is complete but not saved yet, trigger save now
-    if (state.currentPhase === 'complete' && !sessionSaved && !isSaving && !isSavingRef.current && !savePromiseRef.current) {
-      // Set guard immediately to prevent concurrent saves
+    // If session is complete but auto-save failed or hasn't completed, try saving now
+    if (state.currentPhase === 'complete' && !sessionSaved && !isSavingRef.current && !savePromiseRef.current) {
       isSavingRef.current = true;
       setIsSaving(true);
       try {
@@ -203,10 +218,10 @@ export const Session: React.FC = () => {
         const savePromise = StorageService.saveSession(session);
         savePromiseRef.current = savePromise;
         await savePromise;
-        console.log('[Session] Successfully saved session (from handleFinish):', session.id);
+        console.log('[Session] Successfully saved session (manual save from Finish):', session.id);
         setSessionSaved(true);
       } catch (error) {
-        console.error('[Session] Failed to save session (from handleFinish):', error);
+        console.error('[Session] Failed to save session (manual save from Finish):', error);
       } finally {
         setIsSaving(false);
         isSavingRef.current = false;
@@ -214,7 +229,7 @@ export const Session: React.FC = () => {
       }
     }
 
-    // Wait for save to complete if it's still in progress
+    // Wait for any in-progress save to complete before navigating away
     if (savePromiseRef.current) {
       try {
         await Promise.race([
@@ -229,6 +244,7 @@ export const Session: React.FC = () => {
         // Continue anyway - user can still navigate
       }
     }
+    
     keepAwakeDeactivate();
     navigation.goBack();
   };
