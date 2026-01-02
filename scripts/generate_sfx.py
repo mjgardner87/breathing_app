@@ -66,59 +66,75 @@ def generate_breath(path: Path, duration: float, direction: str) -> None:
     _write_wav(path, samples)
 
 
-def generate_bell(path: Path, duration: float, frequency: float = 880.0) -> None:
-    """Generate a realistic bell/chime sound with rich harmonics and natural decay."""
+def generate_singing_bowl(path: Path, duration: float, frequency: float = 293.66) -> None:
+    """Generate a realistic Tibetan singing bowl sound.
+
+    Tibetan singing bowls have distinctive non-harmonic partials that create
+    their characteristic warm, meditative tone. The partials follow specific
+    ratios based on actual bowl acoustic analysis.
+
+    Args:
+        path: Output WAV file path
+        duration: Sound duration in seconds
+        frequency: Fundamental frequency (default D4 = 293.66 Hz, common meditation bowl)
+    """
     total_samples = int(SAMPLE_RATE * duration)
     samples: list[float] = []
+
+    # Tibetan bowl characteristic partial ratios (based on acoustic analysis)
+    # These are NOT harmonic - they create the distinctive "singing" quality
+    f1 = frequency * 1.0     # Fundamental
+    f2 = frequency * 2.71    # First partial (NOT octave)
+    f3 = frequency * 4.45    # Second partial
+    f4 = frequency * 6.26    # Third partial
+    f5 = frequency * 8.05    # Fourth partial
 
     for i in range(total_samples):
         t = i / SAMPLE_RATE
 
-        # Natural exponential decay envelope with slight attack
-        attack_time = 0.05  # Quick attack
-        if t < attack_time:
-            attack_envelope = t / attack_time
+        # Complex envelope with initial strike and long sustain
+        attack = 0.003  # Very quick attack (3ms)
+        if t < attack:
+            envelope = t / attack
         else:
-            attack_envelope = 1.0
-        decay_envelope = math.exp(-2.8 * t / duration) * attack_envelope
+            # Multi-stage decay for realistic bowl sustain
+            # Fast initial decay + slow sustain creates the "singing" effect
+            decay1 = math.exp(-1.2 * (t - attack))   # Fast initial decay
+            decay2 = math.exp(-0.25 * (t - attack))  # Slow sustain
+            envelope = 0.3 * decay1 + 0.7 * decay2
 
-        # Rich harmonic series for bell-like timbre
-        # Fundamental (880 Hz - A5 note, pleasant and clear)
-        fundamental = math.sin(2 * math.pi * frequency * t)
+        # Subtle frequency modulation (beating) - creates the "wobble" effect
+        beat_rate = 0.5  # Hz - slow beating
+        beat_depth = 0.003
+        freq_mod = 1 + beat_depth * math.sin(2 * math.pi * beat_rate * t)
 
-        # Harmonic series typical of bells
-        harmonic2 = 0.5 * math.sin(2 * math.pi * frequency * 2.0 * t)  # Octave
-        harmonic3 = 0.35 * math.sin(2 * math.pi * frequency * 3.0 * t)  # Perfect fifth above octave
-        harmonic4 = 0.25 * math.sin(2 * math.pi * frequency * 4.0 * t)  # Two octaves
-        harmonic5 = 0.15 * math.sin(2 * math.pi * frequency * 5.76 * t)  # Slight detune for shimmer
-
-        # Add subtle inharmonic partials for metallic character
-        inharmonic1 = 0.12 * math.sin(2 * math.pi * frequency * 2.76 * t)
-        inharmonic2 = 0.08 * math.sin(2 * math.pi * frequency * 4.24 * t)
-
-        # Combine all components with natural decay
+        # Combine partials with bowl-specific amplitudes
+        # Lower partials are stronger, higher ones add shimmer
         sample = (
-            fundamental +
-            harmonic2 +
-            harmonic3 +
-            harmonic4 +
-            harmonic5 +
-            inharmonic1 +
-            inharmonic2
-        ) * decay_envelope * 0.65  # Slightly quieter for pleasant listening
+            1.0 * math.sin(2 * math.pi * f1 * freq_mod * t) +
+            0.7 * math.sin(2 * math.pi * f2 * freq_mod * t) +
+            0.5 * math.sin(2 * math.pi * f3 * t) +
+            0.3 * math.sin(2 * math.pi * f4 * t) +
+            0.15 * math.sin(2 * math.pi * f5 * t)
+        ) * envelope * 0.4  # Keep volume gentle
 
         samples.append(sample)
 
-    # Apply smooth fade to prevent clicks
-    _apply_fade(samples, fade_seconds=0.15)
+    _apply_fade(samples, fade_seconds=0.02)
     _write_wav(path, samples)
+
+
+def generate_bell(path: Path, duration: float, frequency: float = 293.66) -> None:
+    """Generate a Tibetan singing bowl sound (alias for generate_singing_bowl)."""
+    generate_singing_bowl(path, duration, frequency)
 
 
 def _print_usage() -> None:
     print(
         "Usage:\n"
         "  python scripts/generate_sfx.py breath <output_path> <duration_seconds> <direction>\n"
-        "  python scripts/generate_sfx.py bell <output_path> <duration_seconds> [frequency_hz]",
+        "  python scripts/generate_sfx.py bell <output_path> <duration_seconds> [frequency_hz]\n"
+        "  python scripts/generate_sfx.py singing_bowl <output_path> <duration_seconds> [frequency_hz]",
         file=sys.stderr,
     )
 
@@ -150,9 +166,15 @@ def main() -> int:
         return 0
 
     if mode == "bell":
-        frequency = float(sys.argv[4]) if len(sys.argv) > 4 else 880.0
+        frequency = float(sys.argv[4]) if len(sys.argv) > 4 else 293.66
         generate_bell(output, duration, frequency)
         print(f"Created bell sound: {output}")
+        return 0
+
+    if mode == "singing_bowl":
+        frequency = float(sys.argv[4]) if len(sys.argv) > 4 else 293.66
+        generate_singing_bowl(output, duration, frequency)
+        print(f"Created singing bowl sound: {output}")
         return 0
 
     _print_usage()

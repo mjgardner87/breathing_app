@@ -1,11 +1,12 @@
-import React, {useState, useEffect, useRef, useMemo} from 'react';
+import React, {useState, useEffect, useRef, useMemo, useCallback} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, Modal} from 'react-native';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {activate as keepAwakeActivate, deactivate as keepAwakeDeactivate} from '@thehale/react-native-keep-awake';
 import {StorageService} from '../services/StorageService';
 import {AudioService} from '../services/AudioService';
 import {UserPreferences} from '../types';
 import {useSessionState} from '../hooks/useSessionState';
+import {useSessionSaver} from '../hooks/useSessionSaver';
 import {BreathingCircle} from '../components/BreathingCircle';
 import {v4 as uuidv4} from 'uuid';
 import {useTheme} from '../context/ThemeContext';
@@ -27,11 +28,9 @@ export const Session: React.FC = () => {
   const lastMinuteMarker = useRef(0); // Track last minute marker played
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [sessionSaved, setSessionSaved] = useState(false);
-  const savePromiseRef = useRef<Promise<void> | null>(null);
-  const isSavingRef = useRef(false); // Guard against concurrent saves
-  const saveInitiatedRef = useRef(false); // Track if we've initiated auto-save
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const {save: saveSession, waitForSave} = useSessionSaver();
+  const sessionIdRef = useRef<string | null>(null); // Track session ID for deduplication
   const isMountedRef = useRef(true); // Track component mount status
 
   const loadPreferences = async () => {
@@ -48,16 +47,24 @@ export const Session: React.FC = () => {
 
   useEffect(() => {
     loadPreferences();
-    keepAwakeActivate();
     AudioService.initialize();
     isMountedRef.current = true;
 
     return () => {
       isMountedRef.current = false;
-      keepAwakeDeactivate();
       AudioService.release();
     };
   }, []);
+
+  // Use useFocusEffect for reliable keep awake - handles all navigation scenarios
+  useFocusEffect(
+    useCallback(() => {
+      keepAwakeActivate();
+      return () => {
+        keepAwakeDeactivate();
+      };
+    }, [])
+  );
 
   // Breathing phase auto-increment with audio cues
   useEffect(() => {
@@ -147,49 +154,44 @@ export const Session: React.FC = () => {
   // Session complete - save session data automatically
   useEffect(() => {
     // Only save once when phase becomes 'complete'
-    if (
-      state.currentPhase === 'complete' &&
-      !sessionSaved &&
-      !isSavingRef.current &&
-      !saveInitiatedRef.current
-    ) {
-      AudioService.play('round_complete');
-      
-      // Mark that we've initiated the save to prevent duplicates
-      saveInitiatedRef.current = true;
-      isSavingRef.current = true;
-      setIsSaving(true);
-
-      // Save session with proper error handling
-      const saveSessionData = async () => {
-        try {
-          const session = {
-            id: uuidv4(),
-            date: new Date().toISOString(),
-            completedRounds: state.currentRound,
-            holdTimes: state.holdTimes,
-            settings: prefs,
-          };
-          const savePromise = StorageService.saveSession(session);
-          savePromiseRef.current = savePromise;
-          await savePromise;
-          console.log('[Session] Successfully saved session automatically:', session.id);
-          setSessionSaved(true);
-        } catch (error) {
-          console.error('[Session] Failed to save session automatically:', error);
-          // Reset flags so user can try saving manually via Finish button
-          saveInitiatedRef.current = false;
-          // Session data is still displayed to user even if save fails
-        } finally {
-          setIsSaving(false);
-          isSavingRef.current = false;
-          savePromiseRef.current = null;
-        }
-      };
-      
-      saveSessionData();
+    if (state.currentPhase !== 'complete') {
+      return;
     }
-  }, [state.currentPhase, state.currentRound, state.holdTimes, prefs, sessionSaved]);
+
+    // Already saving or saved
+    if (saveStatus === 'saving' || saveStatus === 'saved') {
+      return;
+    }
+
+    // Only save if we have hold times (valid session)
+    if (state.holdTimes.length === 0) {
+      console.log('[Session] No hold times recorded, skipping save');
+      setSaveStatus('saved'); // Mark as done even though we didn't save
+      return;
+    }
+
+    AudioService.play('round_complete');
+    setSaveStatus('saving');
+
+    // Generate session ID once and store in ref to prevent duplicates
+    if (!sessionIdRef.current) {
+      sessionIdRef.current = uuidv4();
+    }
+
+    const session = {
+      id: sessionIdRef.current,
+      date: new Date().toISOString(),
+      completedRounds: state.holdTimes.length, // Use holdTimes.length as authoritative source
+      holdTimes: state.holdTimes,
+      settings: prefs,
+    };
+
+    saveSession(session).then((success) => {
+      if (isMountedRef.current) {
+        setSaveStatus(success ? 'saved' : 'error');
+      }
+    });
+  }, [state.currentPhase, state.holdTimes, prefs, saveSession, saveStatus]);
 
   const handleDoneHolding = () => {
     completeHold(holdTimer);
@@ -203,49 +205,9 @@ export const Session: React.FC = () => {
   };
 
   const handleFinish = async () => {
-    // If session is complete but auto-save failed or hasn't completed, try saving now
-    if (state.currentPhase === 'complete' && !sessionSaved && !isSavingRef.current && !savePromiseRef.current) {
-      isSavingRef.current = true;
-      setIsSaving(true);
-      try {
-        const session = {
-          id: uuidv4(),
-          date: new Date().toISOString(),
-          completedRounds: state.currentRound,
-          holdTimes: state.holdTimes,
-          settings: prefs,
-        };
-        const savePromise = StorageService.saveSession(session);
-        savePromiseRef.current = savePromise;
-        await savePromise;
-        console.log('[Session] Successfully saved session (manual save from Finish):', session.id);
-        setSessionSaved(true);
-      } catch (error) {
-        console.error('[Session] Failed to save session (manual save from Finish):', error);
-      } finally {
-        setIsSaving(false);
-        isSavingRef.current = false;
-        savePromiseRef.current = null;
-      }
-    }
-
     // Wait for any in-progress save to complete before navigating away
-    if (savePromiseRef.current) {
-      try {
-        await Promise.race([
-          savePromiseRef.current,
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Save timeout')), 5000)
-          ),
-        ]);
-        console.log('[Session] Save completed before navigation');
-      } catch (error) {
-        console.error('[Session] Error waiting for save:', error);
-        // Continue anyway - user can still navigate
-      }
-    }
-    
-    keepAwakeDeactivate();
+    await waitForSave();
+    // keepAwakeDeactivate is handled by useFocusEffect cleanup
     navigation.goBack();
   };
 
@@ -258,7 +220,7 @@ export const Session: React.FC = () => {
   };
 
   const confirmCancel = () => {
-    keepAwakeDeactivate();
+    // keepAwakeDeactivate is handled by useFocusEffect cleanup
     navigation.goBack();
   };
 
@@ -323,11 +285,11 @@ export const Session: React.FC = () => {
                 </Text>
               ))}
               <TouchableOpacity
-                style={[styles.finishButton, isSaving && styles.finishButtonDisabled]}
+                style={[styles.finishButton, saveStatus === 'saving' && styles.finishButtonDisabled]}
                 onPress={handleFinish}
-                disabled={isSaving}>
+                disabled={saveStatus === 'saving'}>
                 <Text style={styles.finishButtonText}>
-                  {isSaving ? 'Saving...' : 'Finish'}
+                  {saveStatus === 'saving' ? 'Saving...' : 'Finish'}
                 </Text>
               </TouchableOpacity>
             </View>

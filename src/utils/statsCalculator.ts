@@ -134,7 +134,7 @@ export function buildTrendSummary(
       sessionId: session.id,
       date: session.date,
       label: format(new Date(session.date), 'EEE'),
-      maxHold: Math.max(...session.holdTimes),
+      maxHold: session.holdTimes.length > 0 ? Math.max(...session.holdTimes) : 0,
     }))
     .reverse();
 

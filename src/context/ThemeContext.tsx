@@ -25,25 +25,37 @@ export const ThemeProvider: React.FC<{children: React.ReactNode}> = ({children})
   const systemScheme = useColorScheme();
   const [themeType, setThemeType] = useState<ThemeType>('system');
   const [activeTheme, setActiveTheme] = useState<Theme>(defaultTheme);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadThemePreference();
   }, []);
 
   useEffect(() => {
+    // Don't update theme until loaded to prevent flash
+    if (isLoading) {
+      return;
+    }
     const isDark =
       themeType === 'dark' || (themeType === 'system' && systemScheme === 'dark');
     setActiveTheme(isDark ? darkTheme : lightTheme);
-  }, [themeType, systemScheme]);
+  }, [themeType, systemScheme, isLoading]);
 
   const loadThemePreference = async () => {
     try {
       const storedTheme = await AsyncStorage.getItem('@breathingapp:theme_preference');
-      if (storedTheme) {
-        setThemeType(storedTheme as ThemeType);
-      }
+      const resolvedType = (storedTheme as ThemeType) || 'system';
+      setThemeType(resolvedType);
+
+      // Apply theme immediately based on loaded preference
+      const isDark =
+        resolvedType === 'dark' ||
+        (resolvedType === 'system' && systemScheme === 'dark');
+      setActiveTheme(isDark ? darkTheme : lightTheme);
     } catch (error) {
       console.error('Failed to load theme preference:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -55,6 +67,11 @@ export const ThemeProvider: React.FC<{children: React.ReactNode}> = ({children})
       console.error('Failed to save theme preference:', error);
     }
   };
+
+  // Return null while loading to prevent theme flash
+  if (isLoading) {
+    return null;
+  }
 
   return (
     <ThemeContext.Provider

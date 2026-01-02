@@ -35,13 +35,35 @@ export class StorageService {
     }
   }
 
+  /**
+   * Validates and normalises a session to ensure data integrity.
+   * Ensures completedRounds matches holdTimes.length.
+   */
+  private static validateSession(session: SessionData): SessionData | null {
+    // Filter out sessions with no hold times (invalid)
+    if (!session.holdTimes || session.holdTimes.length === 0) {
+      return null;
+    }
+
+    return {
+      ...session,
+      // Ensure completedRounds matches holdTimes length
+      completedRounds: session.holdTimes.length,
+    };
+  }
+
   static async getSessions(): Promise<SessionData[]> {
     try {
       const data = await AsyncStorage.getItem(SESSIONS_KEY);
       if (!data) {
         return [];
       }
-      return JSON.parse(data);
+      const sessions: SessionData[] = JSON.parse(data);
+
+      // Validate and filter sessions
+      return sessions
+        .map(s => this.validateSession(s))
+        .filter((s): s is SessionData => s !== null);
     } catch (error) {
       console.error('Failed to load sessions:', error);
       return [];

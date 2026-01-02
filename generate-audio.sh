@@ -1,44 +1,73 @@
 #!/bin/bash
 
 # Audio Generation Script for Breathing App
-# Generates all required audio files using AI text-to-speech
+# Generates high-quality audio using Edge TTS (neural voices) and procedural SFX
 
 set -e
 
 OUTPUT_DIR="android/app/src/main/res/raw"
 TEMP_DIR="/tmp/breathing-audio"
 SFX_SCRIPT="scripts/generate_sfx.py"
+VOICE_SCRIPT="scripts/generate_voice.py"
 
 echo "========================================="
 echo "Breathing App - Audio Generation"
 echo "========================================="
 echo ""
 
-# Check if espeak-ng is available
-if ! command -v espeak-ng &> /dev/null; then
-    echo "❌ espeak-ng is not installed"
-    echo "   Install: sudo dnf install espeak-ng"
-    exit 1
-fi
+# Check dependencies
+check_dependencies() {
+    local missing=0
 
-# Check if sox is available (optional, for audio post-processing)
-if ! command -v sox &> /dev/null; then
-    echo "⚠️  sox not found - audio will be generated without post-processing"
-    echo "   Install for better quality: sudo dnf install sox"
-    echo "   Continuing without sox..."
-fi
+    if ! command -v python3 &> /dev/null; then
+        echo "❌ python3 is required"
+        missing=1
+    fi
 
-# Ensure python is available for SFX generation
-if ! command -v python3 &> /dev/null; then
-    echo "❌ python3 is required to generate breath sounds"
-    exit 1
-fi
+    # Check for uv (preferred) for edge-tts
+    if command -v uv &> /dev/null; then
+        echo "✓ uv available (will use edge-tts neural voice)"
+        USE_UV=1
+        USE_EDGE_TTS=1
+    elif python3 -c "import edge_tts" 2>/dev/null; then
+        USE_UV=0
+        USE_EDGE_TTS=1
+        echo "✓ edge-tts available (neural voice)"
+    else
+        USE_UV=0
+        USE_EDGE_TTS=0
+        echo "⚠️  edge-tts not installed - will fall back to espeak-ng"
+        echo "   Install with: uv pip install edge-tts"
+    fi
 
-if [ ! -f "$SFX_SCRIPT" ]; then
-    echo "❌ Missing helper script: $SFX_SCRIPT"
-    exit 1
-fi
+    if ! command -v ffmpeg &> /dev/null && ! command -v sox &> /dev/null; then
+        echo "⚠️  Neither ffmpeg nor sox found - some features may not work"
+        echo "   Install: sudo dnf install ffmpeg sox"
+    fi
 
+    if ! command -v sox &> /dev/null; then
+        echo "⚠️  sox not found - reverb effects will be skipped"
+        echo "   Install for better quality: sudo dnf install sox"
+    else
+        echo "✓ sox available (audio effects)"
+    fi
+
+    if [ ! -f "$SFX_SCRIPT" ]; then
+        echo "❌ Missing helper script: $SFX_SCRIPT"
+        missing=1
+    fi
+
+    if [ ! -f "$VOICE_SCRIPT" ]; then
+        echo "❌ Missing helper script: $VOICE_SCRIPT"
+        missing=1
+    fi
+
+    if [ $missing -eq 1 ]; then
+        exit 1
+    fi
+}
+
+check_dependencies
 echo ""
 
 # Create directories
@@ -48,42 +77,70 @@ mkdir -p "$TEMP_DIR"
 echo "Generating audio files..."
 echo ""
 
-# Function to generate voice audio with improved quality
-generate_audio() {
-    local text="$1"
-    local filename="$2"
-    local pitch="$3"  # Higher pitch = more calming/feminine
-    local speed="$4"   # Slower = more calming
+# ==========================================
+# Voice prompts (Edge TTS or espeak-ng fallback)
+# ==========================================
 
-    echo "  Generating: $filename"
-
-    # Use mbrola voice if available (much more natural), otherwise fall back to espeak-ng
-    # mbrola voices are more natural but require separate installation
-    # For now, optimize espeak-ng with better parameters for more natural sound
-    espeak-ng -v en-us+f3 \
-        -p "$pitch" \
-        -s "$speed" \
-        -a 100 \
-        -g 2 \
-        -k 1 \
-        -w "$TEMP_DIR/${filename}.wav" \
-        "$text"
-
-    # Post-process with sox if available to add subtle reverb and EQ for warmth
-    if command -v sox &> /dev/null; then
-        sox "$TEMP_DIR/${filename}.wav" "$TEMP_DIR/${filename}_processed.wav" \
-            gain -3 \
-            reverb 10 50 50 \
-            highpass 80 \
-            lowpass 8000 \
-            2>/dev/null || cp "$TEMP_DIR/${filename}.wav" "$TEMP_DIR/${filename}_processed.wav"
-        cp "$TEMP_DIR/${filename}_processed.wav" "$OUTPUT_DIR/${filename}.wav"
+generate_voice_prompts() {
+    if [ "$USE_EDGE_TTS" -eq 1 ]; then
+        echo "Using Edge TTS (neural voices)..."
+        if [ "$USE_UV" -eq 1 ]; then
+            uv run --with edge-tts python "$VOICE_SCRIPT" "$OUTPUT_DIR"
+        else
+            python3 "$VOICE_SCRIPT" "$OUTPUT_DIR"
+        fi
     else
-        cp "$TEMP_DIR/${filename}.wav" "$OUTPUT_DIR/${filename}.wav"
+        echo "Using espeak-ng fallback..."
+        generate_espeak_fallback
+    fi
+}
+
+# Fallback to espeak-ng if edge-tts not available
+generate_espeak_fallback() {
+    if ! command -v espeak-ng &> /dev/null; then
+        echo "❌ espeak-ng is not installed"
+        echo "   Install: sudo dnf install espeak-ng"
+        echo "   Or install edge-tts: pip install edge-tts"
+        exit 1
     fi
 
-    echo "    ✓ Created: $OUTPUT_DIR/${filename}.wav"
+    local prompts=(
+        "Hold your breath:hold_breath:65:110"
+        "Take a deep breath in, and hold:recovery_breath:65:105"
+        "Release:release:68:115"
+        "Round complete:round_complete:65:110"
+    )
+
+    for prompt in "${prompts[@]}"; do
+        IFS=':' read -r text filename pitch speed <<< "$prompt"
+        echo "  Generating: $filename (espeak-ng fallback)"
+
+        espeak-ng -v en-us+f3 \
+            -p "$pitch" \
+            -s "$speed" \
+            -a 100 \
+            -g 2 \
+            -k 1 \
+            -w "$TEMP_DIR/${filename}.wav" \
+            "$text"
+
+        # Post-process with sox if available
+        if command -v sox &> /dev/null; then
+            sox "$TEMP_DIR/${filename}.wav" "$OUTPUT_DIR/${filename}.wav" \
+                gain -3 \
+                reverb 10 50 50 \
+                highpass 80 \
+                lowpass 8000 \
+                2>/dev/null || cp "$TEMP_DIR/${filename}.wav" "$OUTPUT_DIR/${filename}.wav"
+        else
+            cp "$TEMP_DIR/${filename}.wav" "$OUTPUT_DIR/${filename}.wav"
+        fi
+    done
 }
+
+# ==========================================
+# Sound effects (procedural generation)
+# ==========================================
 
 # Function to generate breath SFX
 generate_breath_sfx() {
@@ -93,44 +150,46 @@ generate_breath_sfx() {
 
     echo "  Generating: $filename ($direction SFX)"
     python3 "$SFX_SCRIPT" breath "$OUTPUT_DIR/${filename}.wav" "$duration" "$direction"
+    echo "    ✓ Created: $OUTPUT_DIR/${filename}.wav"
 }
 
-# Function to generate bell/chime for minute marker
-generate_bell() {
+# Function to generate Tibetan singing bowl for minute marker
+generate_singing_bowl() {
     local filename="$1"
     local duration="$2"
 
-    echo "  Generating: $filename (bell sound)"
-    python3 "$SFX_SCRIPT" bell "$OUTPUT_DIR/${filename}.wav" "$duration"
+    echo "  Generating: $filename (Tibetan singing bowl)"
+    python3 "$SFX_SCRIPT" singing_bowl "$OUTPUT_DIR/${filename}.wav" "$duration"
+    echo "    ✓ Created: $OUTPUT_DIR/${filename}.wav"
 }
 
-# Generate all voice files
-# Parameters: text, filename, pitch (30-99, higher=calmer), speed (80-450, lower=calmer)
-# Optimized for more natural, calming voice with better pacing
+# ==========================================
+# Generate all audio files
+# ==========================================
 
+echo "--- Generating voice prompts ---"
+generate_voice_prompts
+echo ""
+
+echo "--- Generating sound effects ---"
+# Breath sounds (gentle, ambient)
 generate_breath_sfx "breathe_in" "2.2" "inhale"
 generate_breath_sfx "breathe_out" "2.0" "exhale"
 
-# More natural phrasing and pacing for better user experience
-generate_audio "Hold your breath" "hold_breath" "65" "110"  # Slightly higher pitch, slower pace
-generate_audio "Take a deep breath in, and hold" "recovery_breath" "65" "105"  # Calmer, more measured
-generate_audio "Release" "release" "68" "115"  # Gentle, clear
-generate_audio "Round complete" "round_complete" "65" "110"  # Calming completion cue
-
-# Generate bell/chime for minute marker (880Hz A5 - pleasant, clear bell tone)
-generate_bell "minute_marker" "2.0"
+# Tibetan singing bowl for minute marker (D4, 3 seconds for long decay)
+generate_singing_bowl "minute_marker" "3.0"
+echo ""
 
 # Cleanup
 rm -rf "$TEMP_DIR"
 
-echo ""
 echo "========================================="
 echo "✅ Audio generation complete!"
 echo "========================================="
 echo ""
 
 echo "Generated WAV files in: $OUTPUT_DIR/"
-ls -lh "$OUTPUT_DIR"/*.wav
+ls -lh "$OUTPUT_DIR"/*.wav 2>/dev/null || echo "  (no files found)"
 
 echo ""
 echo "Audio files are now embedded in your app!"
