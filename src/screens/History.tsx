@@ -12,18 +12,23 @@ import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {StorageService} from '../services/StorageService';
 import {SessionData} from '../types';
 import {useTheme} from '../context/ThemeContext';
+import {useNotification} from '../context/NotificationContext';
 import {Theme} from '../constants/theme';
 import {buildTrendSummary, calculateStats, formatTime} from '../utils/statsCalculator';
+import {ExportService, ExportFormat} from '../utils/exportService';
 
 export const History: React.FC = () => {
   const navigation = useNavigation();
   const {theme} = useTheme();
+  const {showNotification} = useNotification();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [trendSummary, setTrendSummary] = useState(() => buildTrendSummary([]));
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const stats = useMemo(() => calculateStats(sessions), [sessions]);
 
@@ -51,8 +56,31 @@ export const History: React.FC = () => {
       await StorageService.clearSessions();
       setShowClearConfirm(false);
       await loadSessions();
+      showNotification('All sessions cleared', 'success');
     } catch (error) {
       console.error('Failed to clear history:', error);
+      showNotification('Failed to clear sessions', 'error');
+    }
+  };
+
+  const handleExport = async (format: ExportFormat) => {
+    if (sessions.length === 0) {
+      showNotification('No sessions to export', 'warning');
+      return;
+    }
+
+    setExporting(true);
+    try {
+      const success = await ExportService.export({format, sessions});
+      setShowExportModal(false);
+      if (success) {
+        showNotification(`Sessions exported as ${format.toUpperCase()}`, 'success');
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      showNotification('Failed to export sessions', 'error');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -102,16 +130,32 @@ export const History: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backButtonText}>←</Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back">
+          <Text style={styles.backButtonText}>{'\u2190'}</Text>
         </TouchableOpacity>
         <Text style={styles.title}>History</Text>
-        <TouchableOpacity
-          style={[styles.clearButton, !sessions.length && styles.clearButtonDisabled]}
-          disabled={!sessions.length}
-          onPress={() => setShowClearConfirm(true)}>
-          <Text style={styles.clearButtonText}>Clear</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[styles.headerButton, !sessions.length && styles.headerButtonDisabled]}
+            disabled={!sessions.length}
+            onPress={() => setShowExportModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Export sessions">
+            <Text style={styles.headerButtonText}>Export</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.clearButton, !sessions.length && styles.headerButtonDisabled]}
+            disabled={!sessions.length}
+            onPress={() => setShowClearConfirm(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Clear all sessions">
+            <Text style={styles.clearButtonText}>Clear</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -213,6 +257,7 @@ export const History: React.FC = () => {
         </ScrollView>
       )}
 
+      {/* Clear Confirmation Modal */}
       <Modal
         visible={showClearConfirm}
         transparent
@@ -225,13 +270,62 @@ export const History: React.FC = () => {
               This will delete every stored session from your device. This action cannot be undone.
             </Text>
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalButtonSecondary} onPress={() => setShowClearConfirm(false)}>
+              <TouchableOpacity
+                style={styles.modalButtonSecondary}
+                onPress={() => setShowClearConfirm(false)}>
                 <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalButton} onPress={handleClearHistory}>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={handleClearHistory}>
                 <Text style={styles.modalButtonText}>Delete</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Export Modal */}
+      <Modal
+        visible={showExportModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowExportModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Export Sessions</Text>
+            <Text style={styles.modalText}>
+              Export {sessions.length} session{sessions.length !== 1 ? 's' : ''} to share or backup.
+            </Text>
+            <View style={styles.exportOptions}>
+              <TouchableOpacity
+                style={styles.exportOption}
+                onPress={() => handleExport('json')}
+                disabled={exporting}>
+                <Text style={styles.exportOptionTitle}>JSON</Text>
+                <Text style={styles.exportOptionDesc}>Full data with all details</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.exportOption}
+                onPress={() => handleExport('csv')}
+                disabled={exporting}>
+                <Text style={styles.exportOptionTitle}>CSV</Text>
+                <Text style={styles.exportOptionDesc}>Spreadsheet compatible</Text>
+              </TouchableOpacity>
+            </View>
+            {exporting && (
+              <ActivityIndicator
+                size="small"
+                color={theme.colours.text}
+                style={{marginTop: theme.spacing.md}}
+              />
+            )}
+            <TouchableOpacity
+              style={styles.modalButtonSecondary}
+              onPress={() => setShowExportModal(false)}
+              disabled={exporting}>
+              <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -270,15 +364,33 @@ const createStyles = (theme: Theme) =>
       fontWeight: '600',
       letterSpacing: -0.2,
     },
-    clearButton: {
+    headerActions: {
+      flexDirection: 'row',
+      gap: theme.spacing.sm,
+    },
+    headerButton: {
       paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.xs,
       borderRadius: theme.borderRadius.sm,
       borderWidth: 1,
       borderColor: theme.colours.border,
     },
-    clearButtonDisabled: {
+    headerButtonDisabled: {
       opacity: 0.4,
+    },
+    headerButtonText: {
+      color: theme.colours.text,
+      fontSize: 12,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    clearButton: {
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: theme.colours.border,
     },
     clearButtonText: {
       color: theme.colours.danger,
@@ -566,6 +678,31 @@ const createStyles = (theme: Theme) =>
       color: theme.colours.text,
       fontSize: 14,
       fontWeight: '600',
+    },
+    exportOptions: {
+      flexDirection: 'row',
+      gap: theme.spacing.md,
+      marginBottom: theme.spacing.lg,
+    },
+    exportOption: {
+      flex: 1,
+      backgroundColor: theme.colours.background,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing.lg,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.colours.borderSubtle,
+    },
+    exportOptionTitle: {
+      color: theme.colours.text,
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: 4,
+    },
+    exportOptionDesc: {
+      color: theme.colours.textTertiary,
+      fontSize: 12,
+      textAlign: 'center',
     },
   });
 
