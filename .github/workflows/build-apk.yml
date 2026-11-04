@@ -68,11 +68,18 @@ jobs:
       - name: Build APK
         run: cd android && ./gradlew assembleDebug
 
+      - name: Prepare versioned installer
+        id: installer
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "innerfire-$VERSION.apk"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: innerfire-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: innerfire-${{ steps.installer.outputs.version }}
+          path: innerfire-${{ steps.installer.outputs.version }}.apk
           retention-days: 30
 
       - name: Get commit info
@@ -85,40 +92,34 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: Innerfire v1.0.${{ github.run_number }}
+          tag_name: v${{ steps.installer.outputs.version }}
+          name: Innerfire v${{ steps.installer.outputs.version }}
           body: |
-            ## Innerfire - Release v1.0.${{ github.run_number }}
+            ## Innerfire ${{ steps.installer.outputs.version }}
 
             **Build Date:** ${{ steps.commit_info.outputs.commit_date }}
             **Commit:** ${{ steps.commit_info.outputs.sha_short }}
 
             ### Installation
-            1. Download `innerfire-debug.apk` below
+            1. Download `innerfire-${{ steps.installer.outputs.version }}.apk` below
             2. Transfer to your Android phone
             3. Enable "Install from Unknown Sources" in phone settings
-            4. Install the APK
+            4. Install over your existing app to retain your history
             5. See [INSTALL.md](https://github.com/mjgardner87/breathing_app/blob/main/INSTALL.md) for full instructions
 
             ### What's Included
-            - ✅ Dashboard with session tracking and statistics
-            - ✅ Customisable breathing protocols (speed, rounds, breaths)
-            - ✅ Animated breathing circle with smooth pulsing
-            - ✅ Minute marker notifications during breath holds
-            - ✅ Dark/Light theme support (Rayscape/Linear inspired)
-            - ✅ Audio cues for breathing guidance
-            - ✅ Session history tracking
-
-            ### Design
-            - Sleek, minimal UI inspired by Linear and Rayscape
-            - High-contrast dark theme with subtle accents
-            - Professional, distraction-free breathing experience
+            - Instructive offline narration with Learn, Guided and Minimal modes
+            - Optional retention body-awareness prompts and minute information
+            - Synchronised breath sounds and animation, recovery countdown and early release
+            - Separate five-minute gentle breathing sessions without holds
+            - Rounded hold times, safer history saving and completed-round preservation
+            - Larger session controls, voice previews and separate audio volumes
 
             ### Important
             This app is **NOT affiliated with Wim Hof or the official Wim Hof Method**. This is a free, open-source personal tool for educational purposes.
 
             For the official Wim Hof Method, visit https://www.wimhofmethod.com
-          files: android/app/build/outputs/apk/debug/app-debug.apk
+          files: innerfire-${{ steps.installer.outputs.version }}.apk
           draft: false
           prerelease: false
         env:
