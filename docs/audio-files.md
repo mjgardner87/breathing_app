@@ -1,31 +1,26 @@
-# Audio Files
+# Innerfire audio
 
-The Breathing App comes with **bundled audio files** located in `android/app/src/main/res/raw/`.
+All audio is bundled. Playback needs no network connection or speech service.
 
-These files are compiled into the app (APK) at build time. No runtime loading or external file copying is required by the user.
+- Australian English neural voice with levelled volume and clean, dry speech.
+- Learn explains the technique before breathing. Guided gives short reminders. Minimal keeps essential transitions.
+- Optional retention body awareness invites softening the jaw and hands and noticing support or the fingertips, without trying to produce sensations. Retention ends whenever the person needs to breathe.
+- Voice has priority over breath textures. Long narration does not get cut off by the next breath sound.
+- Breath textures are generated for every supported pace, ending slightly before each phase boundary. Animation and cues follow the same session sequence.
+- Recovery gives time to inhale before its comfortable hold, a spoken countdown, immediate early release and a settling pause.
+- Voice volume, breath-sound volume, body-awareness prompts and minute information are saved separately. Settings includes a preview.
+- Gentle breathing is a separate five-minute practice without holds. Its duration is logged separately from retention statistics.
 
-## Bundled Files
+## Regeneration
 
-The following files are included in the source code and the release APK:
+Run `./generate-audio.sh` from a machine with uv and ffmpeg installed. Generation uses Edge TTS once, while building the pack. The app never uses it at runtime.
 
-- `breathe_in.wav` *(generated breath texture)*
-- `breathe_out.wav` *(generated breath texture)*
-- `hold_breath.wav`
-- `recovery_breath.wav`
-- `release.wav`
-- `round_complete.wav`
-- `minute_marker.wav`
+Edit the original narration in `src/content/voice-prompts.json`. The generator writes WAV files to `src/assets/audio/`, copies them to Android raw resources and generates `src/constants/audio.ts` and `src/constants/audio.android.ts` with measured durations. Commit the recordings and both manifests together.
 
-## Changing the Audio (Developers Only)
+Android uses named raw resources, including in standalone debug APKs. iOS uses Metro assets. Intermediate MP3 recordings are kept in a temporary directory outside the repository.
 
-If you want to change the voice or sounds:
+## Content basis
 
-1. Replace the files in `android/app/src/main/res/raw/` with your own `.wav` files **or** run `./generate-audio.sh` to recreate the default pack.
-2. The helper `scripts/generate_sfx.py` is used to create the inhale/exhale textures and the minute-marker bell. Feel free to tweak it for custom sound design.
-3. **Rebuild the app** (`npm run android` or `./gradlew assembleRelease`).
+The retention/recovery sequence follows the official breathing instructions: https://www.wimhofmethod.com/breathing-exercises
 
-### Filename Rules (Android Resources)
-- Filenames **must** be lowercase.
-- Filenames **must** match the list above exactly.
-- Filenames may only contain `a-z`, `0-9`, and `_`.
-- Do not put documentation or other files in the `res/raw/` directory.
+The optional sensory prompts are Innerfire's own attention cues, not a claimed part of the official method or a proven way to increase its effects. They never ask someone to chase tingling, move during retention or resist the urge to breathe. This app has no affiliation with Wim Hof or his organisation.

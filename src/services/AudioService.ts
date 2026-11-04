@@ -1,51 +1,116 @@
 import SoundPlayer from 'react-native-sound-player';
+import {Platform} from 'react-native';
+import {AUDIO_CLIPS, AudioClip} from '../constants/audio';
+
+type AudioKind = 'voice' | 'sound';
 
 class AudioServiceClass {
-  private initialized = false;
-  private soundPlayerAvailable = false;
+  private available = false;
+  private finish: ((success: boolean) => void) | null = null;
+  private activeKind: AudioKind | null = null;
+  private paused = false;
+  lastError: string | null = null;
 
-  async initialize(): Promise<void> {
-    if (this.initialized) {
-      return;
+  async initialize(): Promise<boolean> {
+    this.available = typeof SoundPlayer?.playAsset === 'function';
+    this.lastError = this.available ? null : 'Audio is unavailable. Follow the on-screen instructions.';
+    return this.available;
+  }
+
+  play(name: AudioClip, kind: AudioKind = 'voice', volume = 0.85): Promise<boolean> {
+    if (kind === 'sound' && this.activeKind === 'voice') {
+      return Promise.resolve(false);
+    }
+    this.stop();
+    if (!this.available || volume <= 0) {
+      return Promise.resolve(false);
     }
 
-    try {
-      // Check if SoundPlayer is available
-      if (SoundPlayer && typeof SoundPlayer.playSoundFile === 'function') {
-        this.soundPlayerAvailable = true;
-        console.log('[AudioService] Initialized with react-native-sound-player');
-      } else {
-        console.warn('[AudioService] SoundPlayer not available, audio will be disabled');
-        this.soundPlayerAvailable = false;
+    const clip = AUDIO_CLIPS[name];
+    return new Promise(resolve => {
+      this.activeKind = kind;
+      this.paused = false;
+      let remaining = clip.durationMs + 1500;
+      let previous = performance.now();
+      const subscriptions: Array<{remove: () => void}> = [];
+      let watchdog: ReturnType<typeof setInterval> | undefined;
+      const finish = (success: boolean) => {
+        if (this.finish !== finish) {
+          return;
+        }
+        this.finish = null;
+        this.activeKind = null;
+        subscriptions.forEach(subscription => subscription.remove());
+        if (watchdog) {
+          clearInterval(watchdog);
+        }
+        resolve(success);
+      };
+      this.finish = finish;
+      try {
+        subscriptions.push(
+          SoundPlayer.addEventListener('FinishedPlaying', ({success}) => {
+            if (success === false) {
+              this.lastError = 'Audio could not play. Follow the on-screen instructions.';
+            }
+            finish(success !== false);
+          }),
+          SoundPlayer.addEventListener('OnSetupError', () => {
+            this.lastError = 'Audio could not load. Follow the on-screen instructions.';
+            this.stop();
+          }),
+        );
+        SoundPlayer.setVolume(Math.max(0, Math.min(1, volume)));
+        if (Platform.OS === 'android') {
+          SoundPlayer.playSoundFile(name, 'wav');
+        } else {
+          SoundPlayer.playAsset(clip.asset);
+        }
+        watchdog = setInterval(() => {
+          const now = performance.now();
+          if (!this.paused) {
+            remaining -= now - previous;
+          }
+          previous = now;
+          if (remaining <= 0) {
+            this.lastError = 'Audio was interrupted. Follow the on-screen instructions.';
+            this.stop();
+          }
+        }, 100);
+      } catch {
+        this.lastError = 'Audio could not start. Follow the on-screen instructions.';
+        this.stop();
       }
-      this.initialized = true;
-    } catch (error) {
-      console.warn('[AudioService] Failed to initialize:', error);
-      this.soundPlayerAvailable = false;
-      this.initialized = true;
+    });
+  }
+
+  pause(): void {
+    this.paused = true;
+    if (this.finish) {
+      try { SoundPlayer.pause(); } catch { this.stop(); }
     }
   }
 
-  play(name: string): void {
-    if (!this.soundPlayerAvailable) {
-      console.log(`[AudioService] Would play: ${name} (SoundPlayer not available)`);
-      return;
+  resume(): void {
+    this.paused = false;
+    if (this.finish) {
+      try { SoundPlayer.resume(); } catch { this.stop(); }
     }
+  }
 
-    try {
-      // Play sound from raw resources
-      // File extension is automatically handled
-      SoundPlayer.playSoundFile(name, 'wav');
-    } catch (error) {
-      console.warn(`[AudioService] Playback failed for ${name}:`, error);
+  stop(): void {
+    const finish = this.finish;
+    // Remove the old listener before a replacement clip can emit an event.
+    finish?.(false);
+    if (this.available) {
+      try { SoundPlayer.stop(); } catch { /* Already stopped. */ }
     }
+    this.paused = false;
   }
 
   release(): void {
-    // No cleanup needed for react-native-sound-player
-    this.initialized = false;
-    this.soundPlayerAvailable = false;
-    console.log('[AudioService] Released audio resources');
+    this.stop();
+    this.available = false;
   }
 }
 

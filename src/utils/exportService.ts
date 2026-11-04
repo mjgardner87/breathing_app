@@ -1,6 +1,8 @@
 import {Share} from 'react-native';
 import {format, parseISO} from 'date-fns';
 import {SessionData} from '../types';
+import {formatTime} from './statsCalculator';
+import {version} from '../../package.json';
 
 export type ExportFormat = 'json' | 'csv';
 
@@ -40,16 +42,20 @@ export class ExportService {
   private static toJSON(sessions: SessionData[]): string {
     const exportData = {
       exportDate: new Date().toISOString(),
-      appVersion: '2.0.0',
+      appVersion: version,
       totalSessions: sessions.length,
       sessions: sessions.map(session => ({
         id: session.id,
         date: session.date,
         completedRounds: session.completedRounds,
+        mode: session.mode ?? 'retention',
+        durationSeconds: session.durationSeconds,
         holdTimes: session.holdTimes,
-        holdTimesFormatted: session.holdTimes.map(t => this.formatTime(t)),
+        holdTimesFormatted: session.holdTimes.map(formatTime),
         averageHoldTime: this.calculateAverage(session.holdTimes),
-        bestHoldTime: Math.max(...session.holdTimes),
+        averageHoldTimeFormatted: formatTime(this.calculateAverage(session.holdTimes)),
+        bestHoldTime: session.holdTimes.length ? Math.max(...session.holdTimes) : 0,
+        bestHoldTimeFormatted: formatTime(session.holdTimes.length ? Math.max(...session.holdTimes) : 0),
         settings: session.settings,
       })),
     };
@@ -65,30 +71,34 @@ export class ExportService {
       'Date',
       'Time',
       'Rounds',
-      'Best Hold (s)',
-      'Average Hold (s)',
+      'Best Hold (m:ss)',
+      'Average Hold (m:ss)',
       'Hold Times',
       'Breaths/Round',
       'Breathing Pace (s)',
+      'Practice',
+      'Duration (m:ss)',
     ];
 
     const rows = sessions.map(session => {
       const date = parseISO(session.date);
-      const best = Math.max(...session.holdTimes);
+      const best = session.holdTimes.length ? Math.max(...session.holdTimes) : 0;
       const avg = this.calculateAverage(session.holdTimes);
       const holdTimesStr = session.holdTimes
-        .map(t => this.formatTime(t))
+        .map(formatTime)
         .join('; ');
 
       return [
         format(date, 'yyyy-MM-dd'),
         format(date, 'HH:mm:ss'),
         session.completedRounds,
-        best,
-        avg.toFixed(1),
+        formatTime(best),
+        formatTime(avg),
         `"${holdTimesStr}"`,
         session.settings.breathsPerRound,
         session.settings.breathingSpeed,
+        session.mode ?? 'retention',
+        formatTime(session.durationSeconds ?? 0),
       ].join(',');
     });
 
@@ -137,15 +147,6 @@ export class ExportService {
   }
 
   /**
-   * Format seconds to MM:SS string.
-   */
-  private static formatTime(seconds: number): string {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
-
-  /**
    * Calculate average of hold times.
    */
   private static calculateAverage(holdTimes: number[]): number {
@@ -190,7 +191,7 @@ export class ExportService {
     return {
       totalSessions: sessions.length,
       totalRounds,
-      bestHold: Math.max(...allHoldTimes),
+      bestHold: allHoldTimes.length ? Math.max(...allHoldTimes) : 0,
       averageHold: this.calculateAverage(allHoldTimes),
       dateRange,
     };
