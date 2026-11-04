@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {UserPreferences, SessionData} from '../types';
-import {DEFAULT_PREFERENCES, STORAGE_KEYS} from '../constants/defaults';
+import {DEFAULT_PREFERENCES, resolvePreferences, STORAGE_KEYS} from '../constants/defaults';
 
 /**
  * Storage service for persisting app data.
@@ -18,7 +18,7 @@ export class StorageService {
         return DEFAULT_PREFERENCES;
       }
       const parsed = JSON.parse(data);
-      return {...DEFAULT_PREFERENCES, ...parsed};
+      return resolvePreferences({...DEFAULT_PREFERENCES, ...parsed});
     } catch (error) {
       console.error('[StorageService] Failed to load preferences:', error);
       return DEFAULT_PREFERENCES;
@@ -47,19 +47,39 @@ export class StorageService {
    * Only used when READING sessions for display, NOT during save.
    */
   private static validateSessionForDisplay(
-    session: SessionData,
+    session: unknown,
   ): SessionData | null {
-    if (!session.holdTimes || session.holdTimes.length === 0) {
-      console.warn(
-        '[StorageService] Filtering invalid session for display:',
-        session.id,
-      );
+    if (!session || typeof session !== 'object') {
+      return null;
+    }
+
+    const candidate = session as Partial<SessionData>;
+    if (
+      typeof candidate.id !== 'string' ||
+      !candidate.id.trim() ||
+      typeof candidate.date !== 'string' ||
+      !Number.isFinite(Date.parse(candidate.date)) ||
+      !Array.isArray(candidate.holdTimes) ||
+      (candidate.holdTimes.length === 0 && candidate.mode !== 'gentle') ||
+      (candidate.mode === 'gentle' && (
+        typeof candidate.durationSeconds !== 'number' ||
+        !Number.isFinite(candidate.durationSeconds) || candidate.durationSeconds <= 0
+      )) ||
+      !candidate.holdTimes.every(
+        hold => typeof hold === 'number' && Number.isFinite(hold) && hold >= 0,
+      )
+    ) {
+      console.warn('[StorageService] Skipping invalid session for display');
       return null;
     }
 
     return {
-      ...session,
-      completedRounds: session.holdTimes.length,
+      ...candidate,
+      id: candidate.id,
+      date: candidate.date,
+      holdTimes: candidate.holdTimes,
+      completedRounds: candidate.holdTimes.length,
+      settings: {...DEFAULT_PREFERENCES, ...candidate.settings},
     };
   }
 
@@ -71,14 +91,15 @@ export class StorageService {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.sessions);
       if (!data) {
-        return [];
+        return this.recoverFromBackup();
       }
       const sessions: SessionData[] = JSON.parse(data);
 
       // Validate and filter sessions for display
       return sessions
         .map(s => this.validateSessionForDisplay(s))
-        .filter((s): s is SessionData => s !== null);
+        .filter((s): s is SessionData => s !== null)
+        .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
     } catch (error) {
       console.error('[StorageService] Failed to load sessions:', error);
       // Attempt recovery from backup
@@ -92,14 +113,19 @@ export class StorageService {
    */
   private static async getRawSessions(): Promise<SessionData[]> {
     try {
-      const data = await AsyncStorage.getItem(STORAGE_KEYS.sessions);
+      const primary = await AsyncStorage.getItem(STORAGE_KEYS.sessions);
+      const data = primary ?? await AsyncStorage.getItem(STORAGE_KEYS.sessionsBackup);
       if (!data) {
         return [];
       }
-      return JSON.parse(data);
+      const sessions: unknown = JSON.parse(data);
+      if (!Array.isArray(sessions)) {
+        throw new Error('Stored session history is not an array');
+      }
+      return sessions;
     } catch (error) {
       console.error('[StorageService] Failed to load raw sessions:', error);
-      return [];
+      throw error;
     }
   }
 
@@ -112,9 +138,9 @@ export class StorageService {
    */
   static async saveSession(session: SessionData): Promise<boolean> {
     // Pre-save validation: reject invalid sessions upfront
-    if (!session.holdTimes || session.holdTimes.length === 0) {
+    if (!this.validateSessionForDisplay(session)) {
       console.error(
-        '[StorageService] Cannot save session with empty holdTimes:',
+        '[StorageService] Cannot save invalid session:',
         session.id,
       );
       return false;
@@ -131,7 +157,7 @@ export class StorageService {
       const sessions = await this.getRawSessions();
 
       // Check for duplicate
-      const existingIndex = sessions.findIndex(s => s.id === session.id);
+      const existingIndex = sessions.findIndex(s => s?.id === session.id);
       if (existingIndex !== -1) {
         console.log(
           '[StorageService] Session already exists, updating:',
@@ -157,7 +183,7 @@ export class StorageService {
       }
 
       const savedSessions: SessionData[] = JSON.parse(verifyData);
-      const found = savedSessions.find(s => s.id === session.id);
+      const found = savedSessions.find(s => s?.id === session.id);
 
       if (!found) {
         console.error(
@@ -233,6 +259,9 @@ export class StorageService {
       }
 
       const sessions: SessionData[] = JSON.parse(backupData);
+      if (!Array.isArray(sessions)) {
+        throw new Error('Backup session history is not an array');
+      }
       console.log(
         '[StorageService] Recovered',
         sessions.length,
@@ -247,7 +276,8 @@ export class StorageService {
 
       return sessions
         .map(s => this.validateSessionForDisplay(s))
-        .filter((s): s is SessionData => s !== null);
+        .filter((s): s is SessionData => s !== null)
+        .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
     } catch (error) {
       console.error('[StorageService] Recovery from backup failed:', error);
       return [];

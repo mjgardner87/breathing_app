@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useMemo} from 'react';
+import React, {useState, useEffect, useMemo, useRef, useCallback} from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Switch,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import Slider from '@react-native-community/slider';
 import {StorageService} from '../services/StorageService';
+import {AudioService} from '../services/AudioService';
 import {UserPreferences} from '../types';
 import {useTheme} from '../context/ThemeContext';
 import {useNotification} from '../context/NotificationContext';
@@ -18,6 +20,7 @@ import {
   DEFAULT_PREFERENCES,
   SESSION_PRESETS,
   PresetKey,
+  resolvePreferences,
 } from '../constants/defaults';
 
 export const Settings: React.FC = () => {
@@ -29,14 +32,21 @@ export const Settings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [prefs, setPrefs] = useState<UserPreferences>(DEFAULT_PREFERENCES);
   const [activePreset, setActivePreset] = useState<PresetKey | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const previewRun = useRef(0);
 
-  const loadPreferences = async () => {
+  const detectActivePreset = useCallback((currentPrefs: UserPreferences) => {
+    const match = Object.entries(SESSION_PRESETS).find(([, preset]) =>
+      (['breathsPerRound', 'numberOfRounds', 'recoveryDuration', 'breathingSpeed'] as const)
+        .every(key => currentPrefs[key] === preset.settings[key]),
+    );
+    setActivePreset(match ? match[0] as PresetKey : null);
+  }, []);
+
+  const loadPreferences = useCallback(async () => {
     try {
       const data = await StorageService.getPreferences();
-      setPrefs({
-        ...data,
-        breathingSpeed: data.breathingSpeed ?? 2.0,
-      });
+      setPrefs(resolvePreferences(data));
       // Check if current prefs match any preset
       detectActivePreset(data);
     } catch (error) {
@@ -44,31 +54,19 @@ export const Settings: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const detectActivePreset = (currentPrefs: UserPreferences) => {
-    for (const [key, preset] of Object.entries(SESSION_PRESETS)) {
-      const settings = preset.settings;
-      if (
-        currentPrefs.breathsPerRound === settings.breathsPerRound &&
-        currentPrefs.numberOfRounds === settings.numberOfRounds &&
-        currentPrefs.recoveryDuration === settings.recoveryDuration &&
-        currentPrefs.breathingSpeed === settings.breathingSpeed
-      ) {
-        setActivePreset(key as PresetKey);
-        return;
-      }
-    }
-    setActivePreset(null);
-  };
+  }, [detectActivePreset]);
 
   useEffect(() => {
     loadPreferences();
-  }, []);
+    return () => {
+      previewRun.current = previewRun.current + 1;
+      AudioService.release();
+    };
+  }, [loadPreferences]);
 
-  const updatePreference = async (
-    key: keyof UserPreferences,
-    value: number,
+  const updatePreference = async <K extends keyof UserPreferences,>(
+    key: K,
+    value: UserPreferences[K],
   ) => {
     const newPrefs = {...prefs, [key]: value};
     setPrefs(newPrefs);
@@ -82,10 +80,11 @@ export const Settings: React.FC = () => {
 
   const applyPreset = async (presetKey: PresetKey) => {
     const preset = SESSION_PRESETS[presetKey];
-    setPrefs(preset.settings);
+    const updated = {...prefs, ...preset.settings};
+    setPrefs(updated);
     setActivePreset(presetKey);
     try {
-      await StorageService.savePreferences(preset.settings);
+      await StorageService.savePreferences(updated);
       showNotification(`${preset.name} preset applied`, 'success');
     } catch (error) {
       console.error('Failed to save preset:', error);
@@ -102,6 +101,28 @@ export const Settings: React.FC = () => {
     } catch (error) {
       console.error('Failed to reset preferences:', error);
       showNotification('Failed to reset settings', 'error');
+    }
+  };
+
+  const previewAudio = async () => {
+    const run = ++previewRun.current;
+    if (previewing) {
+      AudioService.stop();
+      setPreviewing(false);
+      return;
+    }
+    setPreviewing(true);
+    await AudioService.initialize();
+    const options = resolvePreferences(prefs);
+    await AudioService.play('preview', 'voice', options.voiceVolume);
+    if (run !== previewRun.current) { return; }
+    await AudioService.play('inhale_20', 'sound', options.soundVolume);
+    if (run !== previewRun.current) { return; }
+    await AudioService.play('exhale_20', 'sound', options.soundVolume);
+    if (run !== previewRun.current) { return; }
+    setPreviewing(false);
+    if (AudioService.lastError) {
+      showNotification(AudioService.lastError, 'error');
     }
   };
 
@@ -129,6 +150,68 @@ export const Settings: React.FC = () => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        <Text style={styles.sectionHeader}>Voice guidance</Text>
+        <View style={styles.settingCard}>
+          {([
+            ['learn', 'Learn', 'Full explanations before you begin, with a little more guidance.'],
+            ['guided', 'Guided', 'Short reminders with plenty of quiet.'],
+            ['minimal', 'Minimal', 'Essential transitions and breath sounds.'],
+          ] as const).map(([value, label, description]) => (
+            <TouchableOpacity key={value} style={styles.guidanceOption}
+              accessibilityRole="radio"
+              accessibilityState={{checked: (prefs.guidance ?? 'guided') === value}}
+              onPress={() => updatePreference('guidance', value)}>
+              <Text style={styles.guidanceLabel}>
+                {(prefs.guidance ?? 'guided') === value ? 'Selected · ' : ''}{label}
+              </Text>
+              <Text style={styles.guidanceDescription}>{description}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={styles.settingCard}>
+          <View style={styles.settingHeader}>
+            <Text style={styles.settingLabel}>Voice volume</Text>
+            <Text style={styles.settingValue}>{Math.round((prefs.voiceVolume ?? 0.85) * 100)}%</Text>
+          </View>
+          <Slider minimumValue={0} maximumValue={1} step={0.05}
+            style={styles.slider} value={prefs.voiceVolume ?? 0.85}
+            accessibilityLabel="Voice volume"
+            onValueChange={value => setPrefs(previous => ({...previous, voiceVolume: value}))}
+            onSlidingComplete={value => updatePreference('voiceVolume', value)}
+            minimumTrackTintColor={theme.colours.text}
+            maximumTrackTintColor={theme.colours.border} thumbTintColor={theme.colours.text} />
+          <View style={styles.settingHeader}>
+            <Text style={styles.settingLabel}>Breath sounds</Text>
+            <Text style={styles.settingValue}>{Math.round((prefs.soundVolume ?? 0.4) * 100)}%</Text>
+          </View>
+          <Slider minimumValue={0} maximumValue={1} step={0.05}
+            style={styles.slider} value={prefs.soundVolume ?? 0.4}
+            accessibilityLabel="Breath sound volume"
+            onValueChange={value => setPrefs(previous => ({...previous, soundVolume: value}))}
+            onSlidingComplete={value => updatePreference('soundVolume', value)}
+            minimumTrackTintColor={theme.colours.text}
+            maximumTrackTintColor={theme.colours.border} thumbTintColor={theme.colours.text} />
+          <TouchableOpacity style={styles.previewButton} accessibilityRole="button" onPress={previewAudio}>
+            <Text style={styles.guidanceLabel}>{previewing ? 'Stop preview' : 'Preview voice and sounds'}</Text>
+          </TouchableOpacity>
+          <Text style={styles.guidanceDescription}>All recordings work offline. Your phone's media volume also applies.</Text>
+        </View>
+        <View style={styles.settingCard}>
+          <View style={styles.settingHeader}>
+            <Text style={styles.settingLabel}>Body awareness during retention</Text>
+            <Switch accessibilityLabel="Body awareness during retention"
+              value={prefs.retentionGuidance ?? true}
+              onValueChange={value => updatePreference('retentionGuidance', value)} />
+          </View>
+          <Text style={styles.guidanceDescription}>Optional prompts to soften your hands and notice support. No sensations to chase. Off in Minimal mode.</Text>
+          <View style={[styles.settingHeader, styles.markerRow]}>
+            <Text style={styles.settingLabel}>Retention timer and minute bell</Text>
+            <Switch accessibilityLabel="Retention timer and minute bell"
+              value={prefs.minuteMarkers ?? false}
+              onValueChange={value => updatePreference('minuteMarkers', value)} />
+          </View>
+          <Text style={styles.guidanceDescription}>Optional time information. Breathe in whenever you need to.</Text>
+        </View>
         {/* Appearance Section */}
         <Text style={styles.sectionHeader}>Appearance</Text>
         <View style={styles.settingCard}>
@@ -299,7 +382,7 @@ export const Settings: React.FC = () => {
             maximumTrackTintColor={theme.colours.border}
             thumbTintColor={theme.colours.text}
           />
-          <Text style={styles.helpText}>Lower is faster/more intense.</Text>
+          <Text style={styles.helpText}>Choose a comfortable rhythm. Faster is not a goal.</Text>
         </View>
 
         {/* Reset Button */}
@@ -307,7 +390,7 @@ export const Settings: React.FC = () => {
           <Text style={styles.resetButtonText}>Reset to Default</Text>
         </TouchableOpacity>
 
-        <View style={{height: 40}} />
+        <View style={styles.bottomSpace} />
       </ScrollView>
     </View>
   );
@@ -372,6 +455,7 @@ const createStyles = (theme: Theme) =>
       marginBottom: theme.spacing.md,
     },
     settingLabel: {
+      flexShrink: 1,
       color: theme.colours.text,
       fontSize: 14,
       fontWeight: '500',
@@ -388,10 +472,16 @@ const createStyles = (theme: Theme) =>
       opacity: 0.9,
     },
     helpText: {
-      color: theme.colours.textTertiary,
+      color: theme.colours.textSecondary,
       fontSize: 12,
       marginTop: 4,
     },
+    guidanceOption: {paddingVertical: 12, minHeight: 64},
+    guidanceLabel: {color: theme.colours.text, fontSize: 15, fontWeight: '600'},
+    guidanceDescription: {color: theme.colours.textSecondary, fontSize: 14, lineHeight: 21, marginTop: 6},
+    previewButton: {minHeight: 48, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: theme.colours.border, borderRadius: 10, marginVertical: 12},
+    markerRow: {marginTop: 24},
+    bottomSpace: {height: 40},
     themeSelector: {
       flexDirection: 'row',
       alignItems: 'center',

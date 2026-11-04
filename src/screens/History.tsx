@@ -14,7 +14,7 @@ import {SessionData} from '../types';
 import {useTheme} from '../context/ThemeContext';
 import {useNotification} from '../context/NotificationContext';
 import {Theme} from '../constants/theme';
-import {buildTrendSummary, calculateStats, formatTime} from '../utils/statsCalculator';
+import {buildTrendSummary, calculateStats, formatTime, formatTimeChange} from '../utils/statsCalculator';
 import {ExportService, ExportFormat} from '../utils/exportService';
 
 export const History: React.FC = () => {
@@ -105,8 +105,9 @@ export const History: React.FC = () => {
             </Text>
           </View>
           <View style={styles.sessionMeta}>
-            <Text style={styles.sessionMetaLabel}>Rounds</Text>
-            <Text style={styles.sessionMetaValue}>{session.completedRounds}</Text>
+            <Text style={styles.sessionMetaLabel}>{session.mode === 'gentle' ? 'Gentle breathing' : 'Rounds'}</Text>
+            <Text style={styles.sessionMetaValue}>{session.mode === 'gentle'
+              ? formatTime(session.durationSeconds ?? 0) : session.completedRounds}</Text>
           </View>
         </View>
 
@@ -176,7 +177,7 @@ export const History: React.FC = () => {
             <View style={styles.statCard}>
               <Text style={styles.statLabel}>Rolling Avg</Text>
               <Text style={styles.statValue}>
-                {trendSummary.rollingAverage ? formatTime(Math.round(trendSummary.rollingAverage)) : '0:00'}
+                {formatTime(trendSummary.rollingAverage)}
               </Text>
             </View>
           </View>
@@ -196,8 +197,7 @@ export const History: React.FC = () => {
                       ? styles.trendChangePositive
                       : styles.trendChangeNegative,
                   ]}>
-                  {trendSummary.weeklyChange >= 0 ? '+' : ''}
-                  {trendSummary.weeklyChange.toFixed(2)}s
+                  {formatTimeChange(trendSummary.weeklyChange)}
                 </Text>
               </View>
             </View>

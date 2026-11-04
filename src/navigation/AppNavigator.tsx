@@ -7,11 +7,12 @@ import {Session} from '../screens/Session';
 import {History} from '../screens/History';
 import {useTheme} from '../context/ThemeContext';
 import {StatusBar} from 'react-native';
+import {SessionMode} from '../types';
 
 export type RootStackParamList = {
   Dashboard: undefined;
   Settings: undefined;
-  Session: undefined;
+  Session: {mode?: SessionMode} | undefined;
   History: undefined;
 };
 

@@ -1,5 +1,5 @@
 import {useState, useCallback} from 'react';
-import {UserPreferences, SessionState, SessionPhase} from '../types';
+import {UserPreferences, SessionState} from '../types';
 
 interface UseSessionStateReturn {
   state: SessionState;
@@ -40,12 +40,18 @@ export function useSessionState(prefs: UserPreferences): UseSessionStateReturn {
   }, [prefs.breathsPerRound]);
 
   const completeHold = useCallback((duration: number) => {
-    setState(prev => ({
-      ...prev,
-      currentPhase: 'recovery',
-      holdTimes: [...prev.holdTimes, duration],
-      holdStartTime: null,
-    }));
+    setState(prev => {
+      if (prev.currentPhase !== 'holding') {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        currentPhase: 'recovery',
+        holdTimes: [...prev.holdTimes, duration],
+        holdStartTime: null,
+      };
+    });
   }, []);
 
   const completeRecovery = useCallback(() => {

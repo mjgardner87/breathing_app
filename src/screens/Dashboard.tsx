@@ -109,8 +109,10 @@ export const Dashboard: React.FC = () => {
               <Text style={styles.statLabel}>Avg Hold</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{formatTime(stats.bestHold)}</Text>
-              <Text style={styles.statLabel}>Best</Text>
+              <Text style={styles.statValue}>{stats.lastSessionDate
+                ? new Date(stats.lastSessionDate).toLocaleDateString(undefined, {day: 'numeric', month: 'short'})
+                : '—'}</Text>
+              <Text style={styles.statLabel}>Last practice</Text>
             </View>
           </View>
 
@@ -118,7 +120,12 @@ export const Dashboard: React.FC = () => {
           <TouchableOpacity
             style={styles.startButton}
             onPress={() => navigation.navigate('Session')}>
-            <Text style={styles.startButtonText}>Start Session</Text>
+            <Text style={styles.startButtonText}>Guided breathing</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => navigation.navigate('Session', {mode: 'gentle'})}>
+            <Text style={styles.secondaryButtonText}>Gentle breathing · 5 minutes · No holds</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.secondaryButton}
@@ -158,17 +165,18 @@ export const Dashboard: React.FC = () => {
                     </View>
                     <View style={styles.historyStats}>
                       <View style={styles.historyStatTag}>
-                         <Text style={styles.historyStatValue}>{session.completedRounds}</Text>
-                         <Text style={styles.historyStatLabel}>rds</Text>
+                         <Text style={styles.historyStatValue}>{session.mode === 'gentle'
+                           ? formatTime(session.durationSeconds ?? 0) : session.completedRounds}</Text>
+                         <Text style={styles.historyStatLabel}>{session.mode === 'gentle' ? 'gentle' : 'rounds'}</Text>
                       </View>
-                      <View style={styles.historyStatTag}>
+                      {session.mode !== 'gentle' && <View style={styles.historyStatTag}>
                          <Text style={styles.historyStatValue}>
                            {formatTime(
                              session.holdTimes.length ? Math.max(...session.holdTimes) : 0
                            )}
                          </Text>
                          <Text style={styles.historyStatLabel}>max</Text>
-                      </View>
+                      </View>}
                     </View>
                   </View>
                 ))

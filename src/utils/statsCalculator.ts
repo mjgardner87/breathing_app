@@ -49,9 +49,20 @@ export function calculateStats(sessions: SessionData[]): Stats {
 }
 
 export function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+  const wholeSeconds = Number.isFinite(seconds)
+    ? Math.max(0, Math.round(seconds))
+    : 0;
+  const mins = Math.floor(wholeSeconds / 60);
+  const secs = wholeSeconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+export function formatTimeChange(seconds: number): string {
+  const wholeSeconds = Number.isFinite(seconds)
+    ? Math.round(Math.abs(seconds))
+    : 0;
+  const sign = seconds < 0 && wholeSeconds > 0 ? '-' : '+';
+  return `${sign}${formatTime(wholeSeconds)}`;
 }
 
 const calculateWindowAverage = (windowSessions: SessionData[]): number => {
@@ -117,7 +128,7 @@ export function buildTrendSummary(
     return {
       rollingAverage: 0,
       weeklyChange: 0,
-      streak: 0,
+      streak: calculateDailyStreak(sessions),
       series: [],
     };
   }
@@ -141,7 +152,7 @@ export function buildTrendSummary(
   return {
     rollingAverage,
     weeklyChange,
-    streak: calculateDailyStreak(cleanedSessions),
+    streak: calculateDailyStreak(sessions),
     series,
   };
 }

@@ -4,6 +4,7 @@ import {format, parseISO} from 'date-fns';
 import {useTheme} from '../context/ThemeContext';
 import {Theme} from '../constants/theme';
 import {SessionData} from '../types';
+import {formatTime} from '../utils/statsCalculator';
 
 interface SessionCardProps {
   session: SessionData;
@@ -16,12 +17,6 @@ export function SessionCard({
 }: SessionCardProps): React.JSX.Element {
   const {theme} = useTheme();
   const styles = createStyles(theme);
-
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const formatDate = (dateString: string): string => {
     try {
@@ -39,8 +34,9 @@ export function SessionCard({
     }
   };
 
-  const bestHold = Math.max(...session.holdTimes);
-  const avgHold = session.holdTimes.reduce((a, b) => a + b, 0) / session.holdTimes.length;
+  const bestHold = session.holdTimes.length ? Math.max(...session.holdTimes) : 0;
+  const avgHold = session.holdTimes.length
+    ? session.holdTimes.reduce((a, b) => a + b, 0) / session.holdTimes.length : 0;
 
   return (
     <View style={styles.container}>
@@ -51,12 +47,13 @@ export function SessionCard({
         </View>
         <View style={styles.roundsBadge}>
           <Text style={styles.roundsText}>
-            {session.completedRounds} {session.completedRounds === 1 ? 'round' : 'rounds'}
+            {session.mode === 'gentle' ? 'Gentle · ' + formatTime(session.durationSeconds ?? 0)
+              : session.completedRounds + (session.completedRounds === 1 ? ' round' : ' rounds')}
           </Text>
         </View>
       </View>
 
-      {showDetails && (
+      {showDetails && session.mode !== 'gentle' && (
         <>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
@@ -65,7 +62,7 @@ export function SessionCard({
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Average</Text>
-              <Text style={styles.statValue}>{formatTime(Math.round(avgHold))}</Text>
+              <Text style={styles.statValue}>{formatTime(avgHold)}</Text>
             </View>
           </View>
 
